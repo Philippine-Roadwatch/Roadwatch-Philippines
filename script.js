@@ -14,8 +14,13 @@ function getReportEndpoints() {
   return [API_URL, `${API_URL}?action=getReports`];
 }
 
+function getCurrentOrigin() {
+  return window.location.origin || "this site";
+}
+
 function buildCorsErrorMessage() {
-  return "Request blocked by CORS. Redeploy the Google Apps Script web app with access set to Anyone, and return Access-Control-Allow-Origin for https://philippine-roadwatch.github.io (or *) on GET/POST and OPTIONS responses.";
+  const currentOrigin = getCurrentOrigin();
+  return `Request blocked by CORS from ${currentOrigin}. Redeploy the Google Apps Script web app with access set to Anyone, and return Access-Control-Allow-Origin for ${currentOrigin} (or *) on GET/POST and OPTIONS responses.`;
 }
 
 function isCorsConfigurationIssue(error) {
@@ -30,6 +35,7 @@ function reportCorsTroubleshootingContext() {
       "Google Apps Script CORS troubleshooting:",
       "1) Open Apps Script > Deploy > Manage deployments.",
       "2) Ensure the Web app is deployed with 'Who has access' set to 'Anyone'.",
+      `   Current requesting origin: ${getCurrentOrigin()}.`,
       "3) If your script handles preflight requests, return Access-Control-Allow-Origin and related CORS headers for OPTIONS, GET, and POST.",
       "4) Verify calls use the latest /exec deployment URL."
     ].join("\n")
