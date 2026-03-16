@@ -358,6 +358,33 @@ async function submitCrossOriginViaNoCors(endpoint, formUrlEncoded) {
   return response;
 }
 
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function verifySubmittedReport(trackingNumber) {
+  const maxAttempts = 4;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const matchedReport = await fetchReportByTracking(trackingNumber);
+      if (matchedReport && (matchedReport.tracking || "").toString().trim()) {
+        return true;
+      }
+    } catch (error) {
+      console.warn("Unable to verify submitted report yet", error);
+    }
+
+    if (attempt < maxAttempts) {
+      await wait(1200);
+    }
+  }
+
+  return false;
+}
+
 function toUserFacingLoadErrorMessage(error) {
   if (!error?.message) return "Unable to load reports right now.";
   if (isCorsConfigurationIssue(error)) {
@@ -1192,12 +1219,14 @@ async function submitReport() {
     let lastError;
     let corsBlocked = false;
     let corsBlockedEndpoint = "";
+    let requiresVerification = false;
 
     for (const endpoint of submitEndpoints) {
       try {
         if (isCrossOriginEndpoint(endpoint)) {
           await submitCrossOriginViaNoCors(endpoint, formUrlEncoded);
-          return "";
+          requiresVerification = true;
+          return { body: "", requiresVerification };
         }
 
         const response = await fetch(endpoint, {
@@ -1210,15 +1239,17 @@ async function submitReport() {
           throw new Error(`HTTP ${response.status}`);
         }
 
-        return response.text();
+        return { body: await response.text(), requiresVerification };
       } catch (error) {
         if (isLikelyCorsBlockedRequest(endpoint, error)) {
           try {
             await submitCrossOriginViaNoCors(endpoint, formUrlEncoded);
-            return "";
+            requiresVerification = true;
+            return { body: "", requiresVerification };
           } catch (noCorsError) {
             await submitCrossOriginViaHiddenForm(endpoint, formUrlEncoded);
-            return "";
+            requiresVerification = true;
+            return { body: "", requiresVerification };
           }
         }
 
@@ -1228,7 +1259,8 @@ async function submitReport() {
       try {
         const submitViaGetEndpoint = `${API_URL}?${formUrlEncoded.toString()}`;
         await loadJsonp(submitViaGetEndpoint);
-        return "";
+        requiresVerification = true;
+        return { body: "", requiresVerification };
       } catch (error) {
         if (isLikelyCorsBlockedRequest(endpoint, error)) {
           corsBlocked = true;
@@ -1250,7 +1282,8 @@ async function submitReport() {
   };
 
   try {
-    const res = await trySubmit();
+    const result = await trySubmit();
+    const res = result?.body || "";
     if (res) {
       let payload;
       try {
@@ -1261,6 +1294,13 @@ async function submitReport() {
 
       if (payload && payload.success === false) {
         throw new Error(payload.error || "Submission failed.");
+      }
+    }
+
+    if (result?.requiresVerification) {
+      const isVerified = await verifySubmittedReport(tracking);
+      if (!isVerified) {
+        throw new Error("Report submission could not be confirmed in Google Sheets yet. Please check your Apps Script deployment and try again.");
       }
     }
 
