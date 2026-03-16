@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" role="img" aria-labelledby="title desc">
+  <title id="title">Faded Lanes</title>
+  <desc id="desc">Road with worn lane markings.</desc>
+  <rect width="400" height="240" fill="#d4def0"/>
+  <polygon points="80,0 320,0 390,240 10,240" fill="#59657a"/>
+  <g stroke="#f5f0aa" stroke-width="10" stroke-linecap="round" opacity="0.42">
+    <line x1="200" y1="28" x2="200" y2="66"/>
+    <line x1="196" y1="88" x2="202" y2="126"/>
+    <line x1="194" y1="148" x2="204" y2="182"/>
+    <line x1="192" y1="202" x2="206" y2="230"/>
+  </g>
+</svg>

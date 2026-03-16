@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" role="img" aria-labelledby="title desc">
+  <title id="title">Rough Pavement</title>
+  <desc id="desc">Rough cracked pavement illustration.</desc>
+  <rect width="400" height="240" fill="#d6e2f1"/>
+  <rect y="112" width="400" height="128" fill="#616d80"/>
+  <path d="M20 140 L70 130 L120 145 L175 132 L230 146 L280 136 L330 150 L380 142" fill="none" stroke="#3d4656" stroke-width="6"/>
+  <path d="M35 170 L85 160 L140 176 L195 162 L250 178 L300 166 L360 180" fill="none" stroke="#3b4454" stroke-width="6"/>
+  <path d="M50 205 L100 194 L160 210 L220 196 L280 214 L345 200" fill="none" stroke="#3a4352" stroke-width="6"/>
+</svg>

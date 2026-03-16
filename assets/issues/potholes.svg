@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" role="img" aria-labelledby="title desc">
+  <title id="title">Potholes</title>
+  <desc id="desc">Road with potholes illustration.</desc>
+  <rect width="400" height="240" fill="#d9e7f7"/>
+  <rect y="120" width="400" height="120" fill="#4f5d75"/>
+  <ellipse cx="110" cy="165" rx="48" ry="22" fill="#2e3747"/>
+  <ellipse cx="200" cy="185" rx="60" ry="26" fill="#2b3342"/>
+  <ellipse cx="305" cy="160" rx="42" ry="20" fill="#30394a"/>
+  <rect x="0" y="116" width="400" height="8" fill="#f7d154" opacity="0.8"/>
+</svg>
