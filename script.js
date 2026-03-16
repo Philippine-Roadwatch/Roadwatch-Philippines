@@ -135,10 +135,6 @@ function loadJsonp(endpoint) {
 }
 
 async function fetchApiPayload(endpoint) {
-  if (isCrossOriginEndpoint(endpoint)) {
-    return loadJsonp(endpoint);
-  }
-
   try {
     const response = await fetch(endpoint, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -153,6 +149,10 @@ async function fetchApiPayload(endpoint) {
     }
   } catch (error) {
     if (!isLikelyCorsBlockedRequest(endpoint, error)) throw error;
+
+    // Cross-origin requests can still work through standard fetch when the Apps Script
+    // deployment sends the right CORS headers. Only fall back to JSONP when fetch is
+    // blocked by the browser's CORS policy.
     return loadJsonp(endpoint);
   }
 }
