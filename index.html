@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoadWatch PH</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+</head>
+<body>
+
+<div class="brand-intro" id="brandIntro" aria-hidden="true">
+  <span>RoadWatch PH</span>
+</div>
+
+<div class="bg-orb orb-one" aria-hidden="true"></div>
+<div class="bg-orb orb-two" aria-hidden="true"></div>
+<div class="bg-orb orb-three" aria-hidden="true"></div>
+
+<header>
+  <button class="menuBtn" id="menuBtn" type="button" aria-controls="menu" aria-expanded="false" onclick="toggleMenu()">☰</button>
+  <div class="brand-lockup">
+    <h2>RoadWatch PH</h2>
+    <p>Citizen-powered Road Safety Dashboard</p>
+  </div>
+</header>
+
+<div class="sidebar" id="menu" aria-hidden="true">
+  <button class="closeSidebarBtn" type="button" onclick="closeMenu()" aria-label="Close sidebar">✕</button>
+  <button onclick="showPage('home')">Home</button>
+  <button onclick="showPage('submit')">Submit Report</button>
+</div>
+
+<!-- HOME -->
+<section id="home" class="active">
+  <div class="hero-card highlighted-hero">
+    <p class="hero-tag">Community Road Safety Platform</p>
+    <h1>RoadWatch PH</h1>
+    <h2 class="subheader">Sumbong ng Bayan para sa Mas Maayos na Daan</h2>
+    <p class="live-chip"><span></span><span id="liveStatus">Live updates active across Metro Manila</span></p>
+    <div class="hero-purpose-wrap">
+      <p class="hero-purpose">RoadWatch PH allows citizens to report road problems through a simple mobile-friendly website accessed via QR codes placed in public areas. By submitting reports with photos and exact locations, communities can help authorities respond faster and improve road conditions nationwide.</p>
+    </div>
+
+  </div>
+
+  <div class="home-main-stack">
+
+    <div class="journey-guide card">
+      <p class="journey-eyebrow">From Report to Repair</p>
+      <h3>How RoadWatch PH Works</h3>
+      <div class="journey-top-row">
+        <p class="journey-intro">Every report starts with one caring citizen and ends with safer roads for the whole community. Here is the journey from first scan to final repair.</p>
+        <figure class="journey-qr-card">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Froawatch-philippines.vercel.app%2F" alt="QR code that opens the RoadWatch PH homepage">
+          <p>Scan to open the RoadWatch PH homepage instantly.</p>
+        </figure>
+      </div>
+
+      <div class="journey-columns">
+        <article class="journey-column citizens-journey">
+          <div class="journey-heading-wrap">
+            <p class="journey-label">FOR CITIZENS</p>
+            <h4>How Citizens Make a Difference</h4>
+          </div>
+          <ol class="journey-steps">
+            <li>
+              <span class="journey-step-icon" aria-hidden="true">📱</span>
+              <div>
+                <strong>Scan the QR Code</strong>
+                <small>Spot RoadWatch PH QR codes in barangay halls, waiting sheds, or electric posts to quickly open the website.</small>
+              </div>
+            </li>
+            <li>
+              <span class="journey-step-icon" aria-hidden="true">📝</span>
+              <div>
+                <strong>Add Details, Snap a Photo, and Pin</strong>
+                <small>Tap <b>Report Road Issue</b>, complete the Google Form, upload a clear photo, and pinpoint the location on the map.</small>
+              </div>
+            </li>
+            <li>
+              <span class="journey-step-icon" aria-hidden="true">📬</span>
+              <div>
+                <strong>Submit and Track</strong>
+                <small>Submit instantly and check your email for a unique tracking number to monitor status updates in real time.</small>
+              </div>
+            </li>
+          </ol>
+        </article>
+
+        <article class="journey-column authority-journey">
+          <div class="journey-heading-wrap">
+            <p class="journey-label">FOR AUTHORITIES</p>
+            <h4>How Authorities Drive Solutions</h4>
+          </div>
+          <ol class="journey-steps">
+            <li>
+              <span class="journey-step-icon" aria-hidden="true">🖥️</span>
+              <div>
+                <strong>Receive Reports</strong>
+                <small>Barangay, LGU, and DPWH teams receive incoming reports through the RoadWatch PH website in real time.</small>
+              </div>
+            </li>
+            <li>
+              <span class="journey-step-icon" aria-hidden="true">🚦</span>
+              <div>
+                <strong>Verify and Prioritize</strong>
+                <small>Officials validate submitted reports, assess severity, and prioritize urgent road concerns for faster action.</small>
+              </div>
+            </li>
+            <li>
+              <span class="journey-step-icon" aria-hidden="true">🔧</span>
+              <div>
+                <strong>Update Progress</strong>
+                <small>Repair teams update statuses like <b>Pending</b>, <b>In Progress</b>, and <b>Repaired</b> so citizens stay informed.</small>
+              </div>
+            </li>
+            <li>
+              <span class="journey-step-icon" aria-hidden="true">🤝</span>
+              <div>
+                <strong>Ensure Transparency</strong>
+                <small>Digital tracking keeps the process accountable and helps communities see that road concerns are being addressed.</small>
+              </div>
+            </li>
+          </ol>
+        </article>
+      </div>
+
+      <div class="journey-cta" role="region" aria-label="Report road issue call to action">
+        <p><strong>Every update matters.</strong> Citizens report, authorities act, and communities stay informed together.</p>
+        <button type="button" class="journey-cta-btn" onclick="showPage('submit')">Start a Road Report</button>
+      </div>
+    </div>
+
+    <div class="card track-report-card" aria-labelledby="trackReportHeading">
+      <p class="journey-eyebrow">Track Report Status</p>
+      <h3 id="trackReportHeading">Search by Tracking Number</h3>
+      <p class="track-report-copy">Enter your tracking number to view the submitted report details and current status.</p>
+
+      <form id="trackSearchForm" class="track-search-form">
+        <label for="trackingSearchInput" class="sr-only">Tracking number</label>
+        <input id="trackingSearchInput" type="text" placeholder="e.g., RW1735123456789" required>
+        <button type="submit">Search</button>
+      </form>
+
+      <p id="trackingSearchFeedback" class="track-search-feedback" role="status" aria-live="polite"></p>
+
+      <div id="trackingResultWrapper" class="track-result-wrapper" hidden>
+        <table class="track-result-table">
+          <thead>
+            <tr>
+              <th>Submission Time</th>
+              <th>Name</th>
+              <th>Location</th>
+              <th>Details</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="trackingResultBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUBMIT REPORT -->
+<section id="submit">
+  <div class="submit-stack">
+    <section class="card home-info report-focus-card submit-guide-card">
+      <div class="report-focus-header">
+        <h3>What You Can Report</h3>
+        <p class="report-lead">Citizens can report different types of road and infrastructure problems to help authorities respond faster and improve road safety.</p>
+      </div>
+
+      <div class="issue-type-scroll">
+        <div class="issue-type-grid horizontal-scroll">
+        <article class="issue-type-card">
+          <img src="assets/issues/potholes.svg" alt="Illustration of potholes for road surface problems">
+          <h4>🛣️ Road Surface Problems</h4>
+          <ul>
+            <li>Potholes</li>
+            <li>Road cracks</li>
+            <li>Faded or missing road markings</li>
+            <li>Uneven or damaged road surfaces</li>
+          </ul>
+        </article>
+
+        <article class="issue-type-card">
+          <img src="assets/issues/flooded-street.svg" alt="Illustration of a flooded street for drainage and flooding problems">
+          <h4>🌧️ Drainage and Flooding Problems</h4>
+          <ul>
+            <li>Clogged roadside drainage</li>
+            <li>Missing or broken drainage cover</li>
+            <li>Flooded roads during heavy rain</li>
+            <li>Water pooling on the road</li>
+          </ul>
+        </article>
+
+        <article class="issue-type-card">
+          <img src="assets/issues/faded-lanes.svg" alt="Illustration of faded lane markings for road safety issues">
+          <h4>⚠️ Road Safety Issues</h4>
+          <ul>
+            <li>Malfunctioning traffic lights</li>
+            <li>Missing or damaged traffic signs</li>
+            <li>Lack of pedestrian crossings</li>
+            <li>Broken or missing guardrails</li>
+          </ul>
+        </article>
+
+        <article class="issue-type-card">
+          <img src="assets/issues/rough-pavement.svg" alt="Illustration of rough pavement for street infrastructure problems">
+          <h4>🏙️ Street Infrastructure Problems</h4>
+          <ul>
+            <li>Damaged sidewalk</li>
+            <li>Broken streetlights</li>
+            <li>Damaged road reflectors</li>
+            <li>Open or uncovered manholes</li>
+          </ul>
+        </article>
+
+        <article class="issue-type-card">
+          <img src="assets/issues/construction-zone.svg" alt="Illustration of a construction zone for road obstruction issues">
+          <h4>🚧 Road Obstruction Issues</h4>
+          <ul>
+            <li>Fallen trees blocking the road</li>
+            <li>Construction materials on the road</li>
+            <li>Illegal parking blocking lanes</li>
+            <li>Debris or large objects on the roadway</li>
+          </ul>
+        </article>
+        </div>
+      </div>
+      <p class="report-focus-note">Every report helps agencies prioritize road repairs and improve safety for all road users.</p>
+    </section>
+
+    <div class="card submit-form-card">
+      <h2>Submit Road Issue</h2>
+
+      <h3>Reporter Information</h3>
+      <div class="row">
+        <input id="lastname" placeholder="Last Name">
+        <input id="firstname" placeholder="First Name">
+        <input id="mi" placeholder="M.I.">
+      </div>
+
+      <div class="row">
+        <input id="email" placeholder="Email">
+        <input id="phone" placeholder="Mobile Number">
+      </div>
+
+      <h3>Road Location</h3>
+      <input id="locationText" placeholder="Street / Road Name (Type or Auto-detect)" />
+      <button class="detectBtn" onclick="detectLocation()">Auto-detect My Location</button>
+
+      <h3>Select Location</h3>
+      <div id="reportMap"></div>
+      <p id="selectedLocation">No location selected</p>
+
+      <h3>Road Issue</h3>
+      <textarea id="issue" placeholder="Describe the issue"></textarea>
+
+      <h3>Upload Photo</h3>
+      <input type="file" id="photo">
+      <img id="photoPreview">
+
+      <button class="submitBtn" onclick="submitReport()">Submit Report</button>
+    </div>
+  </div>
+</section>
+
+<!-- POPUP -->
+<div id="popup">
+  <div class="popup-card">
+    <h3>Report Submitted Successfully!</h3>
+    <p id="trackInfo" style="font-weight:bold; font-size:18px; margin:15px 0;"></p>
+    <div style="display:flex; justify-content:space-between; gap:15px; margin-top:10px;">
+      <button class="submit" onclick="closePopup()" style="flex:1;">Done</button>
+      <button class="submit" onclick="newReport()" style="flex:1;">Submit Another</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
