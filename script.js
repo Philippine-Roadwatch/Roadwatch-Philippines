@@ -18,9 +18,9 @@ function getCurrentOrigin() {
   return window.location.origin || "this site";
 }
 
-function buildCorsErrorMessage() {
+function buildCorsErrorMessage(endpoint = API_URL) {
   const currentOrigin = getCurrentOrigin();
-  return `Request blocked by CORS from ${currentOrigin}. Redeploy the Google Apps Script web app with access set to Anyone, and return Access-Control-Allow-Origin for ${currentOrigin} (or *) on GET/POST and OPTIONS responses.`;
+  return `Request to ${endpoint} was blocked by CORS from ${currentOrigin}. Redeploy the Google Apps Script web app with access set to Anyone, and return Access-Control-Allow-Origin for ${currentOrigin} (or *) on GET/POST and OPTIONS responses.`;
 }
 
 function isCorsConfigurationIssue(error) {
@@ -42,6 +42,10 @@ function reportCorsTroubleshootingContext() {
   );
 
   corsFailureAlreadyLogged = true;
+}
+
+function buildNetworkErrorMessage() {
+  return "Unable to reach the report API. Check your internet connection and verify the Google Apps Script /exec URL is still active.";
 }
 
 function isLikelyCorsBlockedRequest(endpoint, error) {
@@ -126,6 +130,7 @@ async function fetchReports() {
 
   let lastError;
   let corsBlocked = false;
+  let corsBlockedEndpoint = "";
 
   for (const endpoint of sheetEndpoints) {
     try {
@@ -153,6 +158,7 @@ async function fetchReports() {
     } catch (error) {
       if (isLikelyCorsBlockedRequest(endpoint, error)) {
         corsBlocked = true;
+        corsBlockedEndpoint = endpoint;
         break;
       }
       lastError = error;
@@ -161,10 +167,11 @@ async function fetchReports() {
 
   cachedReports = [];
   if (corsBlocked) {
-    const corsError = new Error(buildCorsErrorMessage());
+    const corsError = new Error(buildCorsErrorMessage(corsBlockedEndpoint));
     reportCorsTroubleshootingContext();
     throw corsError;
   }
+  if (lastError instanceof TypeError) throw new Error(buildNetworkErrorMessage());
   if (lastError) throw lastError;
   return cachedReports;
 }
@@ -527,6 +534,7 @@ function submitReport() {
   const trySubmit = async () => {
     let lastError;
     let corsBlocked = false;
+    let corsBlockedEndpoint = "";
 
     for (const endpoint of submitEndpoints) {
       try {
@@ -541,8 +549,9 @@ function submitReport() {
 
         return response.text();
       } catch (error) {
-        if (error instanceof TypeError) {
+        if (isLikelyCorsBlockedRequest(endpoint, error)) {
           corsBlocked = true;
+          corsBlockedEndpoint = endpoint;
           break;
         }
         lastError = error;
@@ -550,10 +559,11 @@ function submitReport() {
     }
 
     if (corsBlocked) {
-      const corsError = new Error(buildCorsErrorMessage());
+      const corsError = new Error(buildCorsErrorMessage(corsBlockedEndpoint));
       reportCorsTroubleshootingContext();
       throw corsError;
     }
+    if (lastError instanceof TypeError) throw new Error(buildNetworkErrorMessage());
     throw lastError || new Error("Unable to submit report");
   };
 
