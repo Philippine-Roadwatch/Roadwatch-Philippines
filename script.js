@@ -3,6 +3,7 @@ let marker;
 let lat = 0;
 let lng = 0;
 let cachedReports = [];
+let corsFailureAlreadyLogged = false;
 
 const API_URL = "https://script.google.com/macros/s/AKfycbw4xD2FCUwBRQVORa-EChiCcA2R5O5sm6vS1_0dOehUPGpQV1-F66vVmjfgllbRaLbO/exec";
 
@@ -15,6 +16,26 @@ function getReportEndpoints() {
 
 function buildCorsErrorMessage() {
   return "Request blocked by CORS. Redeploy the Google Apps Script web app with access set to Anyone, and return Access-Control-Allow-Origin for https://philippine-roadwatch.github.io (or *) on GET/POST and OPTIONS responses.";
+}
+
+function isCorsConfigurationIssue(error) {
+  return Boolean(error?.message && error.message.includes("Request blocked by CORS"));
+}
+
+function reportCorsTroubleshootingContext() {
+  if (corsFailureAlreadyLogged) return;
+
+  console.info(
+    [
+      "Google Apps Script CORS troubleshooting:",
+      "1) Open Apps Script > Deploy > Manage deployments.",
+      "2) Ensure the Web app is deployed with 'Who has access' set to 'Anyone'.",
+      "3) If your script handles preflight requests, return Access-Control-Allow-Origin and related CORS headers for OPTIONS, GET, and POST.",
+      "4) Verify calls use the latest /exec deployment URL."
+    ].join("\n")
+  );
+
+  corsFailureAlreadyLogged = true;
 }
 
 function isLikelyCorsBlockedRequest(endpoint, error) {
@@ -134,7 +155,9 @@ async function fetchReports() {
 
   cachedReports = [];
   if (corsBlocked) {
-    throw new Error(buildCorsErrorMessage());
+    const corsError = new Error(buildCorsErrorMessage());
+    reportCorsTroubleshootingContext();
+    throw corsError;
   }
   if (lastError) throw lastError;
   return cachedReports;
@@ -361,6 +384,9 @@ async function handleTrackingSearch(event) {
     feedback.textContent = "Report found.";
   } catch (error) {
     console.error("Tracking search failed", error);
+    if (isCorsConfigurationIssue(error)) {
+      reportCorsTroubleshootingContext();
+    }
     feedback.textContent = error?.message || "Unable to search right now. Please try again later.";
     wrapper.hidden = true;
     tbody.innerHTML = "";
@@ -518,7 +544,9 @@ function submitReport() {
     }
 
     if (corsBlocked) {
-      throw new Error(buildCorsErrorMessage());
+      const corsError = new Error(buildCorsErrorMessage());
+      reportCorsTroubleshootingContext();
+      throw corsError;
     }
     throw lastError || new Error("Unable to submit report");
   };
