@@ -261,7 +261,8 @@
       </div>
 
       <h3>Road Location</h3>
-      <input id="locationText" placeholder="Street / Road Name (Type or Auto-detect)" />
+      <input id="locationText" list="locationSuggestions" autocomplete="off" placeholder="Street / Road Name (Type or Auto-detect)" />
+      <datalist id="locationSuggestions"></datalist>
       <button class="detectBtn" onclick="detectLocation()">Auto-detect My Location</button>
 
       <h3>Select Location</h3>

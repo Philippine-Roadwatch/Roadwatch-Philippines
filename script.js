@@ -6,6 +6,8 @@ let cachedReports = [];
 let corsFailureAlreadyLogged = false;
 let corsRetryBlockedUntil = 0;
 let isSubmittingReport = false;
+let locationSuggestionAbortController = null;
+let locationSuggestionDebounceTimer = null;
 
 const CORS_RETRY_COOLDOWN_MS = 60 * 1000;
 const LOCAL_REPORTS_KEY = "roadwatchLocalReports";
@@ -33,13 +35,24 @@ function applyAdminStatusOverride(report) {
   const trackingKey = (normalizedReport.tracking || "").toString().trim();
   if (!trackingKey) return normalizedReport;
 
-  const override = getAdminStatusOverrides()[trackingKey];
+  const override = getStatusOverrideByTracking(trackingKey, getAdminStatusOverrides());
   if (!override) return normalizedReport;
 
   return {
     ...normalizedReport,
     status: override
   };
+}
+
+function getStatusOverrideByTracking(tracking, overrides) {
+  const target = (tracking || "").toString().trim().toLowerCase();
+  if (!target || !overrides || typeof overrides !== "object") return "";
+
+  const direct = overrides[tracking];
+  if (direct) return direct;
+
+  const matchedKey = Object.keys(overrides).find((key) => key.trim().toLowerCase() === target);
+  return matchedKey ? overrides[matchedKey] : "";
 }
 
 function getSiteSettings() {
@@ -463,8 +476,24 @@ function loadMap() {
 
     document.getElementById("selectedLocation").innerText =
       "Selected: " + lat.toFixed(5) + " , " + lng.toFixed(5);
+
+    autofillRoadLocationFromCoordinates(lat, lng);
   });
 
+}
+
+async function autofillRoadLocationFromCoordinates(latitude, longitude) {
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+    const data = await response.json();
+    const road = data.address?.road || data.address?.neighbourhood || data.display_name;
+    const locationInput = document.getElementById("locationText");
+    if (locationInput && road) {
+      locationInput.value = road;
+    }
+  } catch (error) {
+    console.log("Reverse geocoding failed", error);
+  }
 }
 
 // Auto-detect user location
@@ -490,19 +519,94 @@ async function detectLocation() {
     document.getElementById("selectedLocation").innerText =
       "Selected: " + lat.toFixed(5) + " , " + lng.toFixed(5);
 
-    try {
-      let response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-      let data = await response.json();
-      let road = data.address?.road || data.display_name;
-      const locationInput = document.getElementById("locationText");
-      if (locationInput) {
-        locationInput.value = road || "";
-      }
-    } catch (error) {
-      console.log("Reverse geocoding failed", error);
-    }
+    await autofillRoadLocationFromCoordinates(lat, lng);
   }, function () {
     alert("Unable to detect location. Please allow GPS permission or place a pin manually.");
+  });
+}
+
+async function fetchLocationSuggestions(query) {
+  if (locationSuggestionAbortController) {
+    locationSuggestionAbortController.abort();
+  }
+
+  locationSuggestionAbortController = new AbortController();
+  const endpoint = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ph&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`;
+  const response = await fetch(endpoint, {
+    signal: locationSuggestionAbortController.signal,
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  if (!response.ok) throw new Error(`Suggestion lookup failed (${response.status})`);
+
+  return response.json();
+}
+
+function renderLocationSuggestions(results) {
+  const datalist = document.getElementById("locationSuggestions");
+  if (!datalist) return;
+
+  datalist.innerHTML = "";
+
+  (Array.isArray(results) ? results : []).forEach((item) => {
+    const option = document.createElement("option");
+    const road = item?.address?.road || item?.name || item?.display_name || "";
+    option.value = road;
+    option.label = item?.display_name || road;
+    option.dataset.lat = item?.lat || "";
+    option.dataset.lon = item?.lon || "";
+    datalist.appendChild(option);
+  });
+}
+
+function attachLocationAutocomplete() {
+  const input = document.getElementById("locationText");
+  const datalist = document.getElementById("locationSuggestions");
+  if (!input || !datalist) return;
+
+  input.addEventListener("input", () => {
+    const query = input.value.trim();
+
+    if (locationSuggestionDebounceTimer) {
+      clearTimeout(locationSuggestionDebounceTimer);
+    }
+
+    if (query.length < 3) {
+      datalist.innerHTML = "";
+      return;
+    }
+
+    locationSuggestionDebounceTimer = setTimeout(async () => {
+      try {
+        const results = await fetchLocationSuggestions(query);
+        renderLocationSuggestions(results);
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          console.log("Location suggestion lookup failed", error);
+        }
+      }
+    }, 280);
+  });
+
+  input.addEventListener("change", () => {
+    const selectedOption = Array.from(datalist.options).find((option) => option.value === input.value);
+    if (!selectedOption) return;
+
+    const optionLat = parseFloat(selectedOption.dataset.lat);
+    const optionLng = parseFloat(selectedOption.dataset.lon);
+    if (!Number.isFinite(optionLat) || !Number.isFinite(optionLng)) return;
+
+    lat = optionLat;
+    lng = optionLng;
+
+    if (!map) loadMap();
+    map.setView([lat, lng], 16);
+    if (marker) map.removeLayer(marker);
+    marker = L.marker([lat, lng]).addTo(map);
+    document.getElementById("selectedLocation").innerText =
+      "Selected: " + lat.toFixed(5) + " , " + lng.toFixed(5);
   });
 }
 
@@ -700,7 +804,7 @@ async function fetchReportByTracking(trackingNumber) {
 
         if (matchedReport && matchedReport.tracking) {
           cachedReports = mergeReportsByTracking([matchedReport], localReports);
-          return matchedReport;
+          return applyAdminStatusOverride(matchedReport);
         }
       }
 
@@ -708,7 +812,7 @@ async function fetchReportByTracking(trackingNumber) {
       const matchedReport = findReportByTracking(reports, trackingNumber);
       if (matchedReport) {
         cachedReports = mergeReportsByTracking(reports, localReports);
-        return matchedReport;
+        return applyAdminStatusOverride(matchedReport);
       }
     } catch (error) {
       if (isLikelyCorsBlockedRequest(endpoint, error)) {
@@ -915,6 +1019,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (trackSearchForm) {
     trackSearchForm.addEventListener("submit", handleTrackingSearch);
   }
+
+  attachLocationAutocomplete();
 
   const liveStatus = document.getElementById("liveStatus");
   const statuses = applyAdminWebsiteSettings() || [

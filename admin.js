@@ -20,9 +20,21 @@ function saveStatusOverrides(overrides) {
 }
 
 function parseReports(payload) {
+  if (typeof payload === "string") {
+    const trimmed = payload.trim();
+    if (!trimmed) return [];
+
+    try {
+      return parseReports(JSON.parse(trimmed));
+    } catch {
+      return [];
+    }
+  }
+
   if (Array.isArray(payload)) return payload;
   if (payload && Array.isArray(payload.reports)) return payload.reports;
   if (payload && Array.isArray(payload.data)) return payload.data;
+  if (payload && Array.isArray(payload.items)) return payload.items;
   return [];
 }
 
@@ -105,7 +117,16 @@ function normalizeReport(record = {}) {
       getFieldValue(record, ["lastname", "lastName", "Last Name"])
     ].filter(Boolean).join(" ") || getFieldValue(record, ["name", "fullName", "Reporter Name"]) || "-",
     location: getFieldValue(record, ["location", "address", "road", "Road Location"]) || "-",
-    issue: getFieldValue(record, ["issue", "issueDetails", "Issue", "Issue Details", "description", "details"]) || "-",
+    issue: getFieldValue(record, [
+      "issue",
+      "issueDetail",
+      "issueDetails",
+      "Issue",
+      "Issue Detail",
+      "Issue Details",
+      "description",
+      "details"
+    ]) || "-",
     photo: getFieldValue(record, ["photo", "image", "photoUrl", "Photo"]) || "",
     status: normalizeStatus(getFieldValue(record, ["status", "reportStatus", "Status"]))
   };
@@ -193,7 +214,17 @@ async function loadReports() {
     const response = await fetch(`${API_URL}?action=getReports`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const payload = await response.json();
+    const responseText = await response.text();
+    let payload = {};
+
+    if (responseText) {
+      try {
+        payload = JSON.parse(responseText);
+      } catch {
+        payload = responseText;
+      }
+    }
+
     const reports = parseReports(payload).map(normalizeReport);
     const overrides = getStatusOverrides();
 
