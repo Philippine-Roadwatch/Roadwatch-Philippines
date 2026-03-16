@@ -685,11 +685,11 @@ function renderTrackingResult(report) {
 
   tbody.innerHTML = `
     <tr>
-      <td>${trackingNumber}</td>
+      <td>${escapeHtml(trackingNumber)}</td>
       <td>${formatSubmissionTime(report)}</td>
-      <td>${fullName}</td>
-      <td>${location}</td>
-      <td>${issueDetails}</td>
+      <td>${escapeHtml(fullName)}</td>
+      <td>${escapeHtml(location)}</td>
+      <td>${escapeHtml(issueDetails)}</td>
       <td><span class="status-pill">${normalizeStatus(report.status)}</span></td>
     </tr>
   `;
@@ -858,6 +858,7 @@ async function submitReport() {
     photoData = await readPhotoAsDataUrl();
   } catch (error) {
     alert(error.message || "Unable to read photo before submitting.");
+    isSubmittingReport = false;
     return;
   }
 
