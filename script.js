@@ -368,13 +368,17 @@ function renderTrackingResult(report) {
     fullName = `${baseName}${middleInitial ? ` ${middleInitial}.` : ""}`.trim();
   }
 
+  const trackingNumber = getFieldValue(report, ["tracking", "trackingNumber", "tracking_no", "track", "Tracking Number", "Tracking #", "Reference Number"]).toString().trim() || "Not available";
   const location = (report.location || report.address || "Not available").toString().trim() || "Not available";
+  const issueDetails = getFieldValue(report, ["issue", "problem", "details", "description", "Issue", "Details", "Report Details"]).toString().trim() || "Not available";
 
   tbody.innerHTML = `
     <tr>
+      <td>${trackingNumber}</td>
       <td>${formatSubmissionTime(report)}</td>
       <td>${fullName}</td>
       <td>${location}</td>
+      <td>${issueDetails}</td>
       <td><span class="status-pill">${normalizeStatus(report.status)}</span></td>
     </tr>
   `;
