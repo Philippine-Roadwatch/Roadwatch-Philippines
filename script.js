@@ -5,24 +5,19 @@ let lng = 0;
 let cachedReports = [];
 
 const API_URL = "https://script.google.com/macros/s/AKfycbw4xD2FCUwBRQVORa-EChiCcA2R5O5sm6vS1_0dOehUPGpQV1-F66vVmjfgllbRaLbO/exec";
-const CORS_PROXY_URL = "https://corsproxy.io/?";
 
-function withCorsProxy(url) {
-  return `${CORS_PROXY_URL}${encodeURIComponent(url)}`;
-}
 
 function getReportEndpoints() {
-  const directEndpoints = [
+  return [
     API_URL,
     `${API_URL}?action=getReports`,
     `${API_URL}?view=reports`,
     `${API_URL}?sheet=Reports`
   ];
+}
 
-  return [
-    ...directEndpoints,
-    ...directEndpoints.map(withCorsProxy)
-  ];
+function buildCorsErrorMessage() {
+  return "Unable to access reports API from this website due to browser CORS restrictions. Please republish the Google Apps Script web app with public access and return CORS headers for your GitHub Pages domain.";
 }
 
 function normalizeKey(key) {
@@ -95,6 +90,7 @@ async function fetchReports() {
   const sheetEndpoints = getReportEndpoints();
 
   let lastError;
+  let corsBlocked = false;
 
   for (const endpoint of sheetEndpoints) {
     try {
@@ -120,11 +116,17 @@ async function fetchReports() {
         return cachedReports;
       }
     } catch (error) {
+      if (error instanceof TypeError) {
+        corsBlocked = true;
+      }
       lastError = error;
     }
   }
 
   cachedReports = [];
+  if (corsBlocked) {
+    throw new Error(buildCorsErrorMessage());
+  }
   if (lastError) throw lastError;
   return cachedReports;
 }
@@ -350,7 +352,7 @@ async function handleTrackingSearch(event) {
     feedback.textContent = "Report found.";
   } catch (error) {
     console.error("Tracking search failed", error);
-    feedback.textContent = "Unable to search right now. Please try again later.";
+    feedback.textContent = error?.message || "Unable to search right now. Please try again later.";
     wrapper.hidden = true;
     tbody.innerHTML = "";
   }
@@ -479,10 +481,11 @@ function submitReport() {
     formData.append("photo", document.getElementById("photo").files[0]);
   }
 
-  const submitEndpoints = [API_URL, withCorsProxy(API_URL)];
+  const submitEndpoints = [API_URL];
 
   const trySubmit = async () => {
     let lastError;
+    let corsBlocked = false;
 
     for (const endpoint of submitEndpoints) {
       try {
@@ -497,10 +500,16 @@ function submitReport() {
 
         return response.text();
       } catch (error) {
+        if (error instanceof TypeError) {
+          corsBlocked = true;
+        }
         lastError = error;
       }
     }
 
+    if (corsBlocked) {
+      throw new Error(buildCorsErrorMessage());
+    }
     throw lastError || new Error("Unable to submit report");
   };
 
@@ -512,7 +521,7 @@ document.getElementById("trackInfo").innerText = "Tracking Number: " + tracking;
     })
     .catch(err => {
       console.error(err);
-      alert("Submission failed. Check your API or internet connection.");
+      alert(err.message || "Submission failed. Check your API or internet connection.");
     });
 }
 
@@ -552,5 +561,10 @@ async function loadReports() {
     });
   } catch (err) {
     console.log("Error loading reports", err);
+
+    const feedback = document.getElementById("trackingSearchFeedback");
+    if (feedback) {
+      feedback.textContent = err?.message || "Unable to load reports right now.";
+    }
   }
 }
