@@ -139,6 +139,7 @@
       </div>
     </div>
 
+
     <div class="card track-report-card" aria-labelledby="trackReportHeading">
       <p class="journey-eyebrow">Track Report Status</p>
       <h3 id="trackReportHeading">Search by Tracking Number</h3>
@@ -284,34 +285,28 @@
 
       <div class="report-stats-grid">
         <article class="stats-kpi stats-kpi-total">
-          <p>Total Reports</p>
+          <p>Reports Submitted</p>
           <strong id="statsTotalReports">--</strong>
         </article>
         <article class="stats-kpi">
-          <p>Pending</p>
+          <p>Pending Reports</p>
           <strong id="statsPending">--</strong>
         </article>
         <article class="stats-kpi">
-          <p>In Progress</p>
+          <p>Reports In Progress</p>
           <strong id="statsInProgress">--</strong>
         </article>
         <article class="stats-kpi">
-          <p>Repaired</p>
+          <p>Issues Repaired</p>
           <strong id="statsRepaired">--</strong>
         </article>
       </div>
 
-      <div class="stats-distribution" id="statsDistribution" aria-live="polite"></div>
-
-      <div class="stats-highlight-row">
-        <article class="stats-highlight">
-          <p class="stats-highlight-label">Most Reported Concern</p>
-          <strong id="statsTopIssue">--</strong>
-        </article>
-        <article class="stats-highlight">
-          <p class="stats-highlight-label">Submitted This Month</p>
-          <strong id="statsThisMonth">--</strong>
-        </article>
+      <div class="home-fixed-list-wrap">
+        <h4>Recently Fixed Roads</h4>
+        <ul id="recentlyFixedRoads" class="home-fixed-list">
+          <li>No repaired reports yet.</li>
+        </ul>
       </div>
 
       <p id="statsFeedback" class="stats-feedback">Loading statistics…</p>

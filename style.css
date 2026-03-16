@@ -1066,6 +1066,27 @@ section.active {
   font-size: 0.86rem;
 }
 
+
+.home-fixed-list-wrap {
+  margin-top: 16px;
+  border: 1px solid rgba(125, 213, 255, 0.23);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(6, 30, 56, 0.58);
+}
+
+.home-fixed-list-wrap h4 {
+  margin: 0;
+}
+
+.home-fixed-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: #d8ecff;
+}
+
 .submit-form-card h2 {
   text-align: center;
   margin-bottom: 18px;

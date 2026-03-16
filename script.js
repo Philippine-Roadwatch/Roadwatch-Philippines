@@ -99,6 +99,15 @@ function normalizeKey(key) {
   return (key || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function escapeHtml(value) {
+  return (value || "").toString()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function getFieldValue(record, aliases) {
   if (!record || typeof record !== "object") return "";
 
@@ -423,17 +432,21 @@ function computeReportStatistics(reports) {
   };
 }
 
+function buildDisplayNameForFixedRoad(report) {
+  const location = (report.location || "").toString().trim() || "Location not provided";
+  const issue = (report.issue || "").toString().trim() || "Issue repaired";
+  return `${location} – ${issue}`;
+}
+
 function renderReportStatistics(reports) {
   const totalEl = document.getElementById("statsTotalReports");
   const pendingEl = document.getElementById("statsPending");
   const inProgressEl = document.getElementById("statsInProgress");
   const repairedEl = document.getElementById("statsRepaired");
-  const topIssueEl = document.getElementById("statsTopIssue");
-  const thisMonthEl = document.getElementById("statsThisMonth");
-  const distributionEl = document.getElementById("statsDistribution");
+  const recentFixedEl = document.getElementById("recentlyFixedRoads");
   const feedbackEl = document.getElementById("statsFeedback");
 
-  if (!totalEl || !pendingEl || !inProgressEl || !repairedEl || !topIssueEl || !thisMonthEl || !distributionEl || !feedbackEl) return;
+  if (!totalEl || !pendingEl || !inProgressEl || !repairedEl || !recentFixedEl || !feedbackEl) return;
 
   const stats = computeReportStatistics(reports);
 
@@ -441,26 +454,23 @@ function renderReportStatistics(reports) {
   pendingEl.textContent = stats.statusCounts.pending.toLocaleString("en-PH");
   inProgressEl.textContent = stats.statusCounts.inProgress.toLocaleString("en-PH");
   repairedEl.textContent = stats.statusCounts.repaired.toLocaleString("en-PH");
-  topIssueEl.textContent = `${stats.topIssue[0]} (${stats.topIssue[1]})`;
-  thisMonthEl.textContent = stats.thisMonthCount.toLocaleString("en-PH");
 
-  const totalIssues = Object.values(stats.issueTypeCounts).reduce((acc, count) => acc + count, 0);
-  const issueEntries = Object.entries(stats.issueTypeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const recentlyFixed = [...(Array.isArray(reports) ? reports : [])]
+    .filter((report) => normalizeStatus(report.status).toLowerCase() === "repaired")
+    .sort((a, b) => {
+      const timeA = new Date(getFieldValue(a, ["timestamp", "time", "submittedAt", "submissionTime", "Submission Time", "date", "createdAt", "Submitted At"]))?.getTime() || 0;
+      const timeB = new Date(getFieldValue(b, ["timestamp", "time", "submittedAt", "submissionTime", "Submission Time", "date", "createdAt", "Submitted At"]))?.getTime() || 0;
+      return timeB - timeA;
+    })
+    .slice(0, 3);
 
-  distributionEl.innerHTML = issueEntries.map(([label, count]) => {
-    const ratio = totalIssues > 0 ? Math.round((count / totalIssues) * 100) : 0;
-    return `
-      <div class="stats-distribution-item">
-        <div class="stats-distribution-label-row">
-          <span>${label}</span>
-          <span>${count} • ${ratio}%</span>
-        </div>
-        <div class="stats-distribution-track">
-          <span style="width:${ratio}%;"></span>
-        </div>
-      </div>
-    `;
-  }).join("");
+  if (recentlyFixed.length === 0) {
+    recentFixedEl.innerHTML = "<li>No repaired reports yet.</li>";
+  } else {
+    recentFixedEl.innerHTML = recentlyFixed
+      .map((report) => `<li>${escapeHtml(buildDisplayNameForFixedRoad(report))}</li>`)
+      .join("");
+  }
 
   feedbackEl.textContent = stats.total > 0
     ? `Updated with ${stats.total.toLocaleString("en-PH")} report${stats.total === 1 ? "" : "s"} from the connected Google Sheet.`
@@ -788,10 +798,12 @@ function resetForm() {
 // Load existing reports
 async function loadReports() {
   try {
-    await fetchReports();
-    renderReportStatistics(cachedReports);
+    const reports = Array.isArray(cachedReports) && cachedReports.length > 0
+      ? cachedReports
+      : await fetchReports();
+    renderReportStatistics(reports);
 
-    cachedReports.forEach(r => {
+    reports.forEach(r => {
       if (!r.lat || !r.lng) return;
 
       L.marker([parseFloat(r.lat), parseFloat(r.lng)])
