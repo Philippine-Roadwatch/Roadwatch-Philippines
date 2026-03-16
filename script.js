@@ -287,6 +287,66 @@ function readPhotoAsDataUrl() {
   });
 }
 
+function submitCrossOriginViaHiddenForm(endpoint, formUrlEncoded) {
+  return new Promise((resolve, reject) => {
+    const iframeName = `roadwatch_submit_iframe_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const iframe = document.createElement("iframe");
+    iframe.name = iframeName;
+    iframe.style.display = "none";
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = endpoint;
+    form.target = iframeName;
+    form.style.display = "none";
+
+    const params = new URLSearchParams(formUrlEncoded);
+    params.forEach((value, key) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    });
+
+    let hasSettled = false;
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      iframe.onload = null;
+      form.remove();
+      iframe.remove();
+    };
+
+    const resolveOnce = () => {
+      if (hasSettled) return;
+      hasSettled = true;
+      cleanup();
+      resolve("");
+    };
+
+    const rejectOnce = (error) => {
+      if (hasSettled) return;
+      hasSettled = true;
+      cleanup();
+      reject(error);
+    };
+
+    iframe.onload = resolveOnce;
+
+    const timeoutId = window.setTimeout(() => {
+      rejectOnce(new Error("Cross-origin form submit timed out."));
+    }, 12000);
+
+    try {
+      document.body.appendChild(iframe);
+      document.body.appendChild(form);
+      form.submit();
+    } catch (error) {
+      rejectOnce(error instanceof Error ? error : new Error("Cross-origin form submit failed."));
+    }
+  });
+}
+
 function toUserFacingLoadErrorMessage(error) {
   if (!error?.message) return "Unable to load reports right now.";
   if (isCorsConfigurationIssue(error)) {
@@ -1125,12 +1185,7 @@ async function submitReport() {
     for (const endpoint of submitEndpoints) {
       try {
         if (isCrossOriginEndpoint(endpoint)) {
-          await fetch(endpoint, {
-            method: "POST",
-            body: formUrlEncoded,
-            mode: "no-cors",
-            redirect: "follow"
-          });
+          await submitCrossOriginViaHiddenForm(endpoint, formUrlEncoded);
           return "";
         }
 
@@ -1147,12 +1202,7 @@ async function submitReport() {
         return response.text();
       } catch (error) {
         if (isLikelyCorsBlockedRequest(endpoint, error)) {
-          await fetch(endpoint, {
-            method: "POST",
-            body: formUrlEncoded,
-            mode: "no-cors",
-            redirect: "follow"
-          });
+          await submitCrossOriginViaHiddenForm(endpoint, formUrlEncoded);
           return "";
         }
 
