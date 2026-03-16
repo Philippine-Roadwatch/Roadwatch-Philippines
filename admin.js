@@ -2,7 +2,6 @@ const ADMIN_USERNAME = "roadwatchph";
 const ADMIN_PASSWORD = "roadwatchph";
 const ADMIN_SESSION_KEY = "roadwatchAdminAuthed";
 const STATUS_OVERRIDES_KEY = "roadwatchAdminStatusOverrides";
-const SITE_SETTINGS_KEY = "roadwatchSiteSettings";
 const API_URL = "https://script.google.com/macros/s/AKfycbz5Z666xxZThJsMGwPCDNg8Vdku-WfQmZHeQHM6Rko4YLwnnpViqTAMX2UfBbUyk_u1/exec";
 
 const loginPanel = document.getElementById("loginPanel");
@@ -39,7 +38,6 @@ function applyAuthUI() {
   loginPanel.classList.toggle("hidden", isAuthed);
   dashboard.classList.toggle("hidden", !isAuthed);
   if (isAuthed) {
-    loadSettings();
     loadReports();
   }
 }
@@ -63,48 +61,59 @@ function logout() {
   applyAuthUI();
 }
 
-function getSiteSettings() {
-  try {
-    return JSON.parse(localStorage.getItem(SITE_SETTINGS_KEY) || "{}");
-  } catch {
-    return {};
+function normalizeKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getFieldValue(record, aliases) {
+  if (!record || typeof record !== "object") return "";
+
+  for (const alias of aliases) {
+    if (record[alias] !== undefined && record[alias] !== null) {
+      return record[alias];
+    }
   }
+
+  const normalized = Object.keys(record).reduce((acc, key) => {
+    acc[normalizeKey(key)] = record[key];
+    return acc;
+  }, {});
+
+  for (const alias of aliases) {
+    const value = normalized[normalizeKey(alias)];
+    if (value !== undefined && value !== null) return value;
+  }
+
+  return "";
 }
 
-function loadSettings() {
-  const settings = getSiteSettings();
-  document.getElementById("heroSubheaderInput").value = settings.heroSubheader || "";
-  document.getElementById("heroPurposeInput").value = settings.heroPurpose || "";
-  document.getElementById("liveStatusesInput").value = Array.isArray(settings.liveStatuses)
-    ? settings.liveStatuses.join("\n")
-    : "";
-}
-
-function saveSettings() {
-  const heroSubheader = document.getElementById("heroSubheaderInput").value.trim();
-  const heroPurpose = document.getElementById("heroPurposeInput").value.trim();
-  const liveStatuses = document.getElementById("liveStatusesInput").value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  localStorage.setItem(SITE_SETTINGS_KEY, JSON.stringify({ heroSubheader, heroPurpose, liveStatuses }));
-  setFeedback("settingsFeedback", "Site settings saved. Refresh homepage to view changes.");
+function normalizeStatus(status) {
+  const raw = String(status || "").trim().toLowerCase();
+  if (raw === "verified") return "Verified";
+  if (raw === "in progress" || raw === "inprogress") return "In Progress";
+  if (raw === "repaired") return "Repaired";
+  return "Pending";
 }
 
 function normalizeReport(record = {}) {
   return {
-    tracking: record.tracking || record.trackingNumber || "",
-    name: [record.firstname || record.firstName, record.lastname || record.lastName].filter(Boolean).join(" ") || record.name || "-",
-    location: record.location || "-",
-    issue: record.issue || record.issueDetails || "-",
-    status: record.status || "Pending"
+    tracking: getFieldValue(record, ["tracking", "trackingNumber", "tracking_no", "Tracking #", "Tracking Number"]),
+    name: [
+      getFieldValue(record, ["firstname", "firstName", "First Name"]),
+      getFieldValue(record, ["lastname", "lastName", "Last Name"])
+    ].filter(Boolean).join(" ") || getFieldValue(record, ["name", "fullName", "Reporter Name"]) || "-",
+    location: getFieldValue(record, ["location", "address", "road", "Road Location"]) || "-",
+    issue: getFieldValue(record, ["issue", "issueDetails", "Issue", "Issue Details", "description", "details"]) || "-",
+    photo: getFieldValue(record, ["photo", "image", "photoUrl", "Photo"]) || "",
+    status: normalizeStatus(getFieldValue(record, ["status", "reportStatus", "Status"]))
   };
 }
 
 function statusSelect(current, tracking) {
   const select = document.createElement("select");
-  ["Pending", "In Progress", "Repaired"].forEach((label) => {
+  ["Pending", "Verified", "In Progress", "Repaired"].forEach((label) => {
     const option = document.createElement("option");
     option.value = label;
     option.textContent = label;
@@ -117,14 +126,68 @@ function statusSelect(current, tracking) {
     overrides[tracking] = select.value;
     saveStatusOverrides(overrides);
     setFeedback("reportsFeedback", `Saved status update for ${tracking}.`);
+    updateAnalyticsFromRows();
   });
 
   return select;
 }
 
+function photoCell(photo) {
+  if (!photo) return "-";
+  const safeUrl = String(photo).trim();
+  if (!safeUrl) return "-";
+
+  const isImageData = safeUrl.startsWith("data:image");
+  const isHttp = /^https?:\/\//i.test(safeUrl);
+  if (!isImageData && !isHttp) return "Uploaded";
+
+  const anchor = document.createElement("a");
+  anchor.href = safeUrl;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+
+  const img = document.createElement("img");
+  img.className = "reportPhotoThumb";
+  img.src = safeUrl;
+  img.alt = "Report photo";
+  anchor.appendChild(img);
+
+  return anchor;
+}
+
+function renderAnalytics(reports) {
+  const counts = {
+    total: reports.length,
+    pending: 0,
+    verified: 0,
+    inProgress: 0,
+    repaired: 0
+  };
+
+  reports.forEach((report) => {
+    const normalized = normalizeStatus(report.status).toLowerCase();
+    if (normalized === "pending") counts.pending += 1;
+    if (normalized === "verified") counts.verified += 1;
+    if (normalized === "in progress") counts.inProgress += 1;
+    if (normalized === "repaired") counts.repaired += 1;
+  });
+
+  document.getElementById("totalReportsCount").textContent = counts.total;
+  document.getElementById("pendingReportsCount").textContent = counts.pending;
+  document.getElementById("verifiedReportsCount").textContent = counts.verified;
+  document.getElementById("inProgressReportsCount").textContent = counts.inProgress;
+  document.getElementById("repairedReportsCount").textContent = counts.repaired;
+}
+
+function updateAnalyticsFromRows() {
+  const selects = Array.from(document.querySelectorAll("#reportsBody select"));
+  const reports = selects.map((select) => ({ status: select.value }));
+  renderAnalytics(reports);
+}
+
 async function loadReports() {
   const tbody = document.getElementById("reportsBody");
-  tbody.innerHTML = '<tr><td colspan="5">Loading reports...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6">Loading reports...</td></tr>';
 
   try {
     const response = await fetch(`${API_URL}?action=getReports`, { cache: "no-store" });
@@ -135,14 +198,18 @@ async function loadReports() {
     const overrides = getStatusOverrides();
 
     if (reports.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5">No reports found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">No reports found.</td></tr>';
+      renderAnalytics([]);
       return;
     }
 
     tbody.innerHTML = "";
+    const renderedReports = [];
+
     reports.forEach((report) => {
       const tr = document.createElement("tr");
-      const effectiveStatus = overrides[report.tracking] || report.status;
+      const effectiveStatus = normalizeStatus(overrides[report.tracking] || report.status);
+      renderedReports.push({ ...report, status: effectiveStatus });
 
       tr.innerHTML = `
         <td>${report.tracking || "-"}</td>
@@ -150,22 +217,31 @@ async function loadReports() {
         <td>${report.location}</td>
         <td>${report.issue}</td>
         <td></td>
+        <td></td>
       `;
 
-      tr.children[4].appendChild(statusSelect(effectiveStatus, report.tracking));
+      const photoElement = photoCell(report.photo);
+      if (typeof photoElement === "string") {
+        tr.children[4].textContent = photoElement;
+      } else {
+        tr.children[4].appendChild(photoElement);
+      }
+
+      tr.children[5].appendChild(statusSelect(effectiveStatus, report.tracking));
       tbody.appendChild(tr);
     });
 
+    renderAnalytics(renderedReports);
     setFeedback("reportsFeedback", `Loaded ${reports.length} report(s).`);
   } catch (error) {
-    tbody.innerHTML = '<tr><td colspan="5">Unable to load reports right now.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">Unable to load reports right now.</td></tr>';
+    renderAnalytics([]);
     setFeedback("reportsFeedback", error.message, true);
   }
 }
 
 document.getElementById("loginBtn").addEventListener("click", login);
 document.getElementById("logoutBtn").addEventListener("click", logout);
-document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
 document.getElementById("refreshReportsBtn").addEventListener("click", loadReports);
 
 applyAuthUI();

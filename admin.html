@@ -29,18 +29,29 @@
       </div>
 
       <article class="panel">
-        <h3>Website Content Controls</h3>
-        <label>Hero subheader
-          <input id="heroSubheaderInput" type="text" maxlength="140">
-        </label>
-        <label>Hero description
-          <textarea id="heroPurposeInput" rows="4"></textarea>
-        </label>
-        <label>Live status messages (one per line)
-          <textarea id="liveStatusesInput" rows="4"></textarea>
-        </label>
-        <button id="saveSettingsBtn" type="button">Save site settings</button>
-        <p id="settingsFeedback" class="feedback"></p>
+        <h3>Report Analytics</h3>
+        <div id="analyticsGrid" class="analyticsGrid">
+          <div class="analyticsCard">
+            <span class="analyticsLabel">Total Reports</span>
+            <strong id="totalReportsCount">0</strong>
+          </div>
+          <div class="analyticsCard">
+            <span class="analyticsLabel">Pending</span>
+            <strong id="pendingReportsCount">0</strong>
+          </div>
+          <div class="analyticsCard">
+            <span class="analyticsLabel">Verified</span>
+            <strong id="verifiedReportsCount">0</strong>
+          </div>
+          <div class="analyticsCard">
+            <span class="analyticsLabel">In Progress</span>
+            <strong id="inProgressReportsCount">0</strong>
+          </div>
+          <div class="analyticsCard">
+            <span class="analyticsLabel">Repaired</span>
+            <strong id="repairedReportsCount">0</strong>
+          </div>
+        </div>
       </article>
 
       <article class="panel">
@@ -57,6 +68,7 @@
                 <th>Name</th>
                 <th>Location</th>
                 <th>Issue</th>
+                <th>Photo</th>
                 <th>Status</th>
               </tr>
             </thead>
