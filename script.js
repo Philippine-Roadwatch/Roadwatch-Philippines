@@ -36,7 +36,7 @@ function reportCorsTroubleshootingContext() {
       "1) Open Apps Script > Deploy > Manage deployments.",
       "2) Ensure the Web app is deployed with 'Who has access' set to 'Anyone'.",
       `   Current requesting origin: ${getCurrentOrigin()}.`,
-      "3) If your script handles preflight requests, return Access-Control-Allow-Origin and related CORS headers for OPTIONS, GET, and POST.",
+      "3) Deploy the web app as 'Anyone' and keep requests as simple GET/POST calls (avoid custom headers that trigger preflight).",
       "4) Verify calls use the latest /exec deployment URL."
     ].join("\n")
   );
