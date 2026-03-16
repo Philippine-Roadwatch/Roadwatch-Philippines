@@ -366,6 +366,7 @@ function wait(ms) {
 
 async function verifySubmittedReport(trackingNumber) {
   const maxAttempts = 4;
+  let encounteredLookupError = false;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -374,6 +375,7 @@ async function verifySubmittedReport(trackingNumber) {
         return true;
       }
     } catch (error) {
+      encounteredLookupError = true;
       console.warn("Unable to verify submitted report yet", error);
     }
 
@@ -382,13 +384,21 @@ async function verifySubmittedReport(trackingNumber) {
     }
   }
 
-  return false;
+  return encounteredLookupError ? null : false;
+}
+
+function isJsonpTransportError(error) {
+  const message = (error?.message || "").toString().toLowerCase();
+  return message.includes("jsonp request failed") || message.includes("jsonp request timed out");
 }
 
 function toUserFacingLoadErrorMessage(error) {
   if (!error?.message) return "Unable to load reports right now.";
   if (isCorsConfigurationIssue(error)) {
     return "Reports are temporarily unavailable because the Google Apps Script deployment is not allowing this website origin (CORS).";
+  }
+  if (isJsonpTransportError(error)) {
+    return "Reports are temporarily unavailable because Google Apps Script is not returning JSONP yet. Please verify your deployment URL and callback support.";
   }
   return error.message;
 }
@@ -1299,8 +1309,11 @@ async function submitReport() {
 
     if (result?.requiresVerification) {
       const isVerified = await verifySubmittedReport(tracking);
-      if (!isVerified) {
+      if (isVerified === false) {
         throw new Error("Report submission could not be confirmed in Google Sheets yet. Please check your Apps Script deployment and try again.");
+      }
+      if (isVerified === null) {
+        console.warn("Skipping strict submission verification because report lookup is temporarily unavailable.");
       }
     }
 
