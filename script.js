@@ -50,6 +50,20 @@ function buildNetworkErrorMessage() {
   return "Unable to reach the report API. Check your internet connection and verify the Google Apps Script /exec URL is still active.";
 }
 
+function readPhotoAsDataUrl() {
+  const photoInput = document.getElementById("photo");
+  const file = photoInput?.files?.[0];
+
+  if (!file) return Promise.resolve("");
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error("Unable to read the selected photo."));
+    reader.readAsDataURL(file);
+  });
+}
+
 function toUserFacingLoadErrorMessage(error) {
   if (!error?.message) return "Unable to load reports right now.";
   if (isCorsConfigurationIssue(error)) {
@@ -516,13 +530,21 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Submit report
-function submitReport() {
+async function submitReport() {
   if (lat === 0 && !document.getElementById("locationText").value.trim()) {
     alert("Please select location on map or type the road name");
     return;
   }
 
   let tracking = "RW" + Date.now();
+
+  let photoData = "";
+  try {
+    photoData = await readPhotoAsDataUrl();
+  } catch (error) {
+    alert(error.message || "Unable to read photo before submitting.");
+    return;
+  }
 
   const reportPayload = {
     tracking,
@@ -534,7 +556,8 @@ function submitReport() {
     location: document.getElementById("locationText").value,
     issue: document.getElementById("issue").value,
     lat: lat || "",
-    lng: lng || ""
+    lng: lng || "",
+    photo: photoData
   };
 
   const formUrlEncoded = new URLSearchParams(reportPayload);
@@ -561,9 +584,19 @@ function submitReport() {
         return response.text();
       } catch (error) {
         if (isLikelyCorsBlockedRequest(endpoint, error)) {
-          corsBlocked = true;
-          corsBlockedEndpoint = endpoint;
-          break;
+          try {
+            await fetch(endpoint, {
+              method: "POST",
+              mode: "no-cors",
+              body: formUrlEncoded
+            });
+            return "submitted-no-cors";
+          } catch (noCorsError) {
+            corsBlocked = true;
+            corsBlockedEndpoint = endpoint;
+            lastError = noCorsError;
+            break;
+          }
         }
         lastError = error;
       }
@@ -578,27 +611,25 @@ function submitReport() {
     throw lastError || new Error("Unable to submit report");
   };
 
-  trySubmit()
-    .then(res => {
-      if (res && res !== "submitted-no-cors") {
-        try {
-          const payload = JSON.parse(res);
-          if (payload && payload.success === false) {
-            throw new Error(payload.error || "Submission failed.");
-          }
-        } catch (error) {
-          // Ignore parse errors because older deployments can return a plain text body.
+  try {
+    const res = await trySubmit();
+    if (res && res !== "submitted-no-cors") {
+      try {
+        const payload = JSON.parse(res);
+        if (payload && payload.success === false) {
+          throw new Error(payload.error || "Submission failed.");
         }
+      } catch (error) {
+        // Ignore parse errors because older deployments can return a plain text body.
       }
+    }
 
-      // Show the popup correctly
-document.getElementById("trackInfo").innerText = "Tracking Number: " + tracking;
-      document.getElementById("popup").classList.add("show"); // use class for fade-in
-    })
-    .catch(err => {
-      console.error(err);
-      alert(err.message || "Submission failed. Check your API or internet connection.");
-    });
+    document.getElementById("trackInfo").innerText = "Tracking Number: " + tracking;
+    document.getElementById("popup").classList.add("show");
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Submission failed. Check your API or internet connection.");
+  }
 }
 
 // Hide popup

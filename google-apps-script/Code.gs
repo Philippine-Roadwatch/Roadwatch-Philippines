@@ -23,7 +23,9 @@ function doPost(e) {
     location: params.location || '',
     issue: params.issue || '',
     lat: params.lat || '',
-    lng: params.lng || ''
+    lng: params.lng || '',
+    photo: params.photo || '',
+    status: params.status || 'Pending'
   };
 
   appendReport_(row);
@@ -56,7 +58,9 @@ function getSheet_() {
       'location',
       'issue',
       'lat',
-      'lng'
+      'lng',
+      'photo',
+      'status'
     ]);
   }
 
@@ -76,7 +80,9 @@ function appendReport_(row) {
     row.location,
     row.issue,
     row.lat,
-    row.lng
+    row.lng,
+    row.photo,
+    row.status
   ]);
 }
 
