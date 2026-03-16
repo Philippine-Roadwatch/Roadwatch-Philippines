@@ -7,6 +7,12 @@ function doGet(e) {
     return buildJsonResponse_({ reports: reports, allowedOrigin: ALLOWED_ORIGIN });
   }
 
+  if (action === 'getReportByTracking') {
+    const tracking = (e && e.parameter && e.parameter.tracking) || '';
+    const report = readReportByTracking_(tracking);
+    return buildJsonResponse_({ report: report, allowedOrigin: ALLOWED_ORIGIN });
+  }
+
   return buildJsonResponse_({ error: 'Unknown action.', allowedOrigin: ALLOWED_ORIGIN });
 }
 
@@ -120,4 +126,19 @@ function readReports_() {
     });
     return item;
   });
+}
+
+function readReportByTracking_(tracking) {
+  const trackingValue = String(tracking || '').trim().toLowerCase();
+  if (!trackingValue) return null;
+
+  const reports = readReports_();
+  for (var i = 0; i < reports.length; i += 1) {
+    var rowTracking = String(reports[i].tracking || '').trim().toLowerCase();
+    if (rowTracking === trackingValue) {
+      return reports[i];
+    }
+  }
+
+  return null;
 }
