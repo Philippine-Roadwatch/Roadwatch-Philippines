@@ -8,16 +8,13 @@ const API_URL = "https://script.google.com/macros/s/AKfycbw4xD2FCUwBRQVORa-EChiC
 
 
 function getReportEndpoints() {
-  return [
-    API_URL,
-    `${API_URL}?action=getReports`,
-    `${API_URL}?view=reports`,
-    `${API_URL}?sheet=Reports`
-  ];
+  // Keep a short endpoint list to avoid spamming repeated browser CORS errors
+  // when the Apps Script deployment is not configured for cross-origin access.
+  return [API_URL, `${API_URL}?action=getReports`];
 }
 
 function buildCorsErrorMessage() {
-  return "Unable to access reports API from this website due to browser CORS restrictions. Please republish the Google Apps Script web app with public access and return CORS headers for your GitHub Pages domain.";
+  return "Request blocked by CORS. The Google Apps Script web app must be deployed for public access and include Access-Control-Allow-Origin (for https://philippine-roadwatch.github.io or *) in GET/POST responses and OPTIONS preflight handling.";
 }
 
 function normalizeKey(key) {
@@ -118,6 +115,7 @@ async function fetchReports() {
     } catch (error) {
       if (error instanceof TypeError) {
         corsBlocked = true;
+        break;
       }
       lastError = error;
     }
@@ -502,6 +500,7 @@ function submitReport() {
       } catch (error) {
         if (error instanceof TypeError) {
           corsBlocked = true;
+          break;
         }
         lastError = error;
       }
