@@ -95,16 +95,17 @@ function buildTrackingLookupEndpoints(trackingNumber) {
   ];
 }
 
-function buildJsonpEndpoint(endpoint) {
+function buildJsonpEndpoint(endpoint, callbackName) {
   const separator = endpoint.includes("?") ? "&" : "?";
-  return `${endpoint}${separator}callback=roadwatchJsonpCallback`;
+  return `${endpoint}${separator}callback=${encodeURIComponent(callbackName)}`;
 }
 
 function loadJsonp(endpoint) {
   return new Promise((resolve, reject) => {
-    const callbackName = "roadwatchJsonpCallback";
+    const callbackName = `roadwatchJsonpCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const scriptId = `${callbackName}_script`;
     const cleanup = () => {
-      const script = document.getElementById(callbackName);
+      const script = document.getElementById(scriptId);
       if (script) script.remove();
       delete window[callbackName];
     };
@@ -121,8 +122,8 @@ function loadJsonp(endpoint) {
     };
 
     const script = document.createElement("script");
-    script.id = callbackName;
-    script.src = buildJsonpEndpoint(endpoint);
+    script.id = scriptId;
+    script.src = buildJsonpEndpoint(endpoint, callbackName);
     script.onerror = () => {
       window.clearTimeout(timeout);
       cleanup();
@@ -134,6 +135,10 @@ function loadJsonp(endpoint) {
 }
 
 async function fetchApiPayload(endpoint) {
+  if (isCrossOriginEndpoint(endpoint)) {
+    return loadJsonp(endpoint);
+  }
+
   try {
     const response = await fetch(endpoint, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -149,6 +154,14 @@ async function fetchApiPayload(endpoint) {
   } catch (error) {
     if (!isLikelyCorsBlockedRequest(endpoint, error)) throw error;
     return loadJsonp(endpoint);
+  }
+}
+
+function isCrossOriginEndpoint(endpoint) {
+  try {
+    return new URL(endpoint).origin !== window.location.origin;
+  } catch {
+    return false;
   }
 }
 
@@ -284,13 +297,7 @@ function toUserFacingLoadErrorMessage(error) {
 
 function isLikelyCorsBlockedRequest(endpoint, error) {
   if (!(error instanceof TypeError)) return false;
-
-  try {
-    const endpointOrigin = new URL(endpoint).origin;
-    return endpointOrigin !== window.location.origin;
-  } catch {
-    return false;
-  }
+  return isCrossOriginEndpoint(endpoint);
 }
 
 function normalizeKey(key) {
@@ -1117,6 +1124,16 @@ async function submitReport() {
 
     for (const endpoint of submitEndpoints) {
       try {
+        if (isCrossOriginEndpoint(endpoint)) {
+          await fetch(endpoint, {
+            method: "POST",
+            body: formUrlEncoded,
+            mode: "no-cors",
+            redirect: "follow"
+          });
+          return "";
+        }
+
         const response = await fetch(endpoint, {
           method: "POST",
           body: formUrlEncoded,
