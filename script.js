@@ -9,9 +9,64 @@ let isSubmittingReport = false;
 
 const CORS_RETRY_COOLDOWN_MS = 60 * 1000;
 const LOCAL_REPORTS_KEY = "roadwatchLocalReports";
+const ADMIN_STATUS_OVERRIDES_KEY = "roadwatchAdminStatusOverrides";
+const SITE_SETTINGS_KEY = "roadwatchSiteSettings";
 
 const API_URL = "https://script.google.com/macros/s/AKfycbz5Z666xxZThJsMGwPCDNg8Vdku-WfQmZHeQHM6Rko4YLwnnpViqTAMX2UfBbUyk_u1/exec";
 
+
+
+function getAdminStatusOverrides() {
+  try {
+    const raw = localStorage.getItem(ADMIN_STATUS_OVERRIDES_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    console.warn("Unable to read admin status overrides", error);
+    return {};
+  }
+}
+
+function applyAdminStatusOverride(report) {
+  const normalizedReport = toReportModel(report);
+  const trackingKey = (normalizedReport.tracking || "").toString().trim();
+  if (!trackingKey) return normalizedReport;
+
+  const override = getAdminStatusOverrides()[trackingKey];
+  if (!override) return normalizedReport;
+
+  return {
+    ...normalizedReport,
+    status: override
+  };
+}
+
+function getSiteSettings() {
+  try {
+    const raw = localStorage.getItem(SITE_SETTINGS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    console.warn("Unable to read site settings", error);
+    return {};
+  }
+}
+
+function applyAdminWebsiteSettings() {
+  const settings = getSiteSettings();
+
+  const subheader = document.getElementById("heroSubheader");
+  if (subheader && settings.heroSubheader) subheader.textContent = settings.heroSubheader;
+
+  const heroPurpose = document.getElementById("heroPurpose");
+  if (heroPurpose && settings.heroPurpose) heroPurpose.textContent = settings.heroPurpose;
+
+  return Array.isArray(settings.liveStatuses) && settings.liveStatuses.length > 0
+    ? settings.liveStatuses.filter(Boolean)
+    : null;
+}
 
 function getReportEndpoints() {
   // Keep a short endpoint list to avoid spamming repeated browser CORS errors
@@ -53,7 +108,7 @@ function mergeReportsByTracking(primaryReports, secondaryReports) {
   const indexByTracking = new Map();
 
   const append = (report) => {
-    const normalizedReport = toReportModel(report);
+    const normalizedReport = applyAdminStatusOverride(report);
     const trackingKey = (normalizedReport.tracking || "").toString().trim().toLowerCase();
 
     if (!trackingKey) {
@@ -862,7 +917,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const liveStatus = document.getElementById("liveStatus");
-  const statuses = [
+  const statuses = applyAdminWebsiteSettings() || [
     "Live updates active across Metro Manila",
     "Citizens are reporting hazards in real-time",
     "Safer roads start with your report"

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoadWatch PH Admin</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <main class="wrap">
+    <section id="loginPanel" class="card">
+      <h1>RoadWatch PH Admin Portal</h1>
+      <p>Log in to access website controls.</p>
+      <label>Username
+        <input id="adminUsername" type="text" autocomplete="username">
+      </label>
+      <label>Password
+        <input id="adminPassword" type="password" autocomplete="current-password">
+      </label>
+      <button id="loginBtn" type="button">Log In</button>
+      <p id="loginFeedback" class="feedback"></p>
+      <a href="index.html" class="link">← Back to homepage</a>
+    </section>
+
+    <section id="dashboard" class="card hidden">
+      <div class="row">
+        <h2>Admin Dashboard</h2>
+        <button id="logoutBtn" type="button" class="secondary">Log out</button>
+      </div>
+
+      <article class="panel">
+        <h3>Website Content Controls</h3>
+        <label>Hero subheader
+          <input id="heroSubheaderInput" type="text" maxlength="140">
+        </label>
+        <label>Hero description
+          <textarea id="heroPurposeInput" rows="4"></textarea>
+        </label>
+        <label>Live status messages (one per line)
+          <textarea id="liveStatusesInput" rows="4"></textarea>
+        </label>
+        <button id="saveSettingsBtn" type="button">Save site settings</button>
+        <p id="settingsFeedback" class="feedback"></p>
+      </article>
+
+      <article class="panel">
+        <div class="row">
+          <h3>Report Status Controls</h3>
+          <button id="refreshReportsBtn" type="button" class="secondary">Refresh</button>
+        </div>
+        <p class="small">Set status per tracking number. Changes are saved in this browser and reflected on the homepage.</p>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tracking #</th>
+                <th>Name</th>
+                <th>Location</th>
+                <th>Issue</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="reportsBody"></tbody>
+          </table>
+        </div>
+        <p id="reportsFeedback" class="feedback"></p>
+      </article>
+    </section>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>
