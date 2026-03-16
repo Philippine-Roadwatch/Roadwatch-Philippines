@@ -2,6 +2,34 @@ const ALLOWED_ORIGIN = 'https://philippine-roadwatch.github.io';
 
 function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || '';
+
+  if (action === 'submitReport' || (action === '' && hasReportSubmissionParams_(e))) {
+    const params = (e && e.parameter) || {};
+    const row = {
+      timestamp: new Date().toISOString(),
+      tracking: params.tracking || '',
+      lastname: params.lastname || '',
+      firstname: params.firstname || '',
+      mi: params.mi || '',
+      email: params.email || '',
+      phone: params.phone || '',
+      location: params.location || '',
+      issue: params.issue || '',
+      lat: params.lat || '',
+      lng: params.lng || '',
+      photo: params.photo || '',
+      status: params.status || 'Pending'
+    };
+
+    const appendResult = appendReport_(row);
+    return buildJsonResponse_({
+      success: true,
+      duplicate: appendResult.duplicate,
+      tracking: row.tracking,
+      allowedOrigin: ALLOWED_ORIGIN
+    }, e);
+  }
+
   if (action === 'getReports' || action === '') {
     const reports = readReports_();
     return buildJsonResponse_({ reports: reports, allowedOrigin: ALLOWED_ORIGIN }, e);
@@ -29,6 +57,17 @@ function doGet(e) {
   }
 
   return buildJsonResponse_({ error: 'Unknown action.', allowedOrigin: ALLOWED_ORIGIN }, e);
+}
+
+function hasReportSubmissionParams_(e) {
+  const params = (e && e.parameter) || {};
+  return Boolean(
+    params.tracking ||
+    params.lastname ||
+    params.firstname ||
+    params.issue ||
+    params.location
+  );
 }
 
 function doPost(e) {
