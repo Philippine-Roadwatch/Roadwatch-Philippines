@@ -88,7 +88,17 @@ async function fetchReports() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const responseText = await response.text();
-      const payload = responseText ? JSON.parse(responseText) : [];
+      let payload = [];
+
+      if (responseText) {
+        try {
+          payload = JSON.parse(responseText);
+        } catch (parseError) {
+          // Some Apps Script deployments return JSON as a serialized string.
+          payload = responseText;
+        }
+      }
+
       const parsedReports = parseReportsFromApi(payload);
 
       if (parsedReports.length > 0) {
@@ -308,7 +318,7 @@ async function handleTrackingSearch(event) {
       reports = await fetchReports();
     }
 
-    const matchedReport = findReportByTracking(cachedReports, trackingNumber);
+    const matchedReport = findReportByTracking(reports, trackingNumber);
 
     if (!matchedReport) {
       feedback.textContent = "No report found for this tracking number.";
