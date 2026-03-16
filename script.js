@@ -483,6 +483,18 @@ function renderReportStatisticsError(error) {
   feedbackEl.textContent = toUserFacingLoadErrorMessage(error);
 }
 
+async function loadStatistics() {
+  try {
+    const reports = Array.isArray(cachedReports) && cachedReports.length > 0
+      ? cachedReports
+      : await fetchReports();
+    renderReportStatistics(reports);
+  } catch (error) {
+    console.log("Error loading statistics", error);
+    renderReportStatisticsError(error);
+  }
+}
+
 function findReportByTracking(reports, trackingNumber) {
   const target = trackingNumber.trim().toLowerCase();
   return reports.find(report => {
@@ -596,6 +608,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const initialPage = resolveInitialPage();
   showPage(initialPage);
+  loadStatistics();
 
   const revealTargets = document.querySelectorAll(".hero-card, .card, .issue-card");
   revealTargets.forEach((el) => el.classList.add("reveal-target"));
@@ -764,6 +777,8 @@ async function submitReport() {
     }
 
     document.getElementById("trackInfo").innerText = "Tracking Number: " + tracking;
+    cachedReports = [];
+    loadStatistics();
     document.getElementById("popup").classList.add("show");
   } catch (err) {
     console.error(err);
