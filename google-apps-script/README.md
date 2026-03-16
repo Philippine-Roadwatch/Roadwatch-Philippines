@@ -19,3 +19,16 @@ From `https://philippine-roadwatch.github.io`, verify:
 Google Apps Script web app responses are served by Google infrastructure. In practice, CORS works when the web app is deployed with **Who has access: Anyone** and requests are made as simple GET/POST calls. `ContentService` does not provide a supported custom response-header API, so this template returns JSON and avoids unsupported header-setting code.
 
 If you need broad origin access, keep client requests simple and avoid custom request headers that can force a preflight requirement.
+
+
+## JSONP fallback for CORS-restricted browsers
+
+This `Code.gs` also supports a `callback` query parameter on `doGet` and `doPost` responses.
+When provided, the API returns JavaScript (`callback(<json>)`) instead of plain JSON so static sites can read data even when CORS headers are missing from Google infrastructure redirects.
+
+Examples:
+- `GET /exec?action=getReports&callback=myFn`
+- `GET /exec?action=getReportByTracking&tracking=RW123&callback=myFn`
+- `GET /exec?action=updateStatus&tracking=RW123&status=Verified&callback=myFn`
+
+> Note: Use POST for normal report submission. The frontend can use `mode: "no-cors"` fallback when the browser blocks reading the response.

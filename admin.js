@@ -6,6 +6,73 @@ const API_URL = "https://script.google.com/macros/s/AKfycbz5Z666xxZThJsMGwPCDNg8
 const loginPanel = document.getElementById("loginPanel");
 const dashboard = document.getElementById("dashboard");
 
+function buildJsonpEndpoint(endpoint) {
+  const separator = endpoint.includes("?") ? "&" : "?";
+  return `${endpoint}${separator}callback=roadwatchAdminJsonpCallback`;
+}
+
+function loadJsonp(endpoint) {
+  return new Promise((resolve, reject) => {
+    const callbackName = "roadwatchAdminJsonpCallback";
+    const cleanup = () => {
+      const existing = document.getElementById(callbackName);
+      if (existing) existing.remove();
+      delete window[callbackName];
+    };
+
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("JSONP request timed out."));
+    }, 10000);
+
+    window[callbackName] = (payload) => {
+      window.clearTimeout(timeout);
+      cleanup();
+      resolve(payload || {});
+    };
+
+    const script = document.createElement("script");
+    script.id = callbackName;
+    script.src = buildJsonpEndpoint(endpoint);
+    script.onerror = () => {
+      window.clearTimeout(timeout);
+      cleanup();
+      reject(new Error("JSONP request failed."));
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
+function isLikelyCorsBlockedRequest(endpoint, error) {
+  if (!(error instanceof TypeError)) return false;
+
+  try {
+    return new URL(endpoint).origin !== window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchApiPayload(endpoint) {
+  try {
+    const response = await fetch(endpoint, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const text = await response.text();
+    if (!text) return {};
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  } catch (error) {
+    if (!isLikelyCorsBlockedRequest(endpoint, error)) throw error;
+    return loadJsonp(endpoint);
+  }
+}
+
 function parseReports(payload) {
   if (typeof payload === "string") {
     const trimmed = payload.trim();
@@ -126,22 +193,29 @@ async function updateReportStatus(tracking, status) {
     status: status
   });
 
-  const response = await fetch(API_URL, {
-    method: "POST",
-    body
-  });
-
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-  const text = await response.text();
   let payload = {};
 
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = {};
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const text = await response.text();
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = {};
+      }
     }
+  } catch (error) {
+    if (!isLikelyCorsBlockedRequest(API_URL, error)) throw error;
+
+    const endpoint = `${API_URL}?action=updateStatus&tracking=${encodeURIComponent(String(tracking || "").trim())}&status=${encodeURIComponent(status)}`;
+    payload = await loadJsonp(endpoint);
   }
 
   if (!payload.success) {
@@ -241,19 +315,7 @@ async function loadReports() {
   tbody.innerHTML = '<tr><td colspan="6">Loading reports...</td></tr>';
 
   try {
-    const response = await fetch(`${API_URL}?action=getReports`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const responseText = await response.text();
-    let payload = {};
-
-    if (responseText) {
-      try {
-        payload = JSON.parse(responseText);
-      } catch {
-        payload = responseText;
-      }
-    }
+    const payload = await fetchApiPayload(`${API_URL}?action=getReports`);
 
     const reports = parseReports(payload).map(normalizeReport);
     if (reports.length === 0) {

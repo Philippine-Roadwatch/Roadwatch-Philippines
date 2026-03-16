@@ -95,6 +95,63 @@ function buildTrackingLookupEndpoints(trackingNumber) {
   ];
 }
 
+function buildJsonpEndpoint(endpoint) {
+  const separator = endpoint.includes("?") ? "&" : "?";
+  return `${endpoint}${separator}callback=roadwatchJsonpCallback`;
+}
+
+function loadJsonp(endpoint) {
+  return new Promise((resolve, reject) => {
+    const callbackName = "roadwatchJsonpCallback";
+    const cleanup = () => {
+      const script = document.getElementById(callbackName);
+      if (script) script.remove();
+      delete window[callbackName];
+    };
+
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("JSONP request timed out."));
+    }, 10000);
+
+    window[callbackName] = (payload) => {
+      window.clearTimeout(timeout);
+      cleanup();
+      resolve(payload || {});
+    };
+
+    const script = document.createElement("script");
+    script.id = callbackName;
+    script.src = buildJsonpEndpoint(endpoint);
+    script.onerror = () => {
+      window.clearTimeout(timeout);
+      cleanup();
+      reject(new Error("JSONP request failed."));
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
+async function fetchApiPayload(endpoint) {
+  try {
+    const response = await fetch(endpoint, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const responseText = await response.text();
+    if (!responseText) return {};
+
+    try {
+      return JSON.parse(responseText);
+    } catch {
+      return responseText;
+    }
+  } catch (error) {
+    if (!isLikelyCorsBlockedRequest(endpoint, error)) throw error;
+    return loadJsonp(endpoint);
+  }
+}
+
 function getLocalReports() {
   try {
     const raw = localStorage.getItem(LOCAL_REPORTS_KEY);
@@ -346,20 +403,7 @@ async function fetchReports() {
 
   for (const endpoint of sheetEndpoints) {
     try {
-      const response = await fetch(endpoint, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const responseText = await response.text();
-      let payload = [];
-
-      if (responseText) {
-        try {
-          payload = JSON.parse(responseText);
-        } catch (parseError) {
-          // Some Apps Script deployments return JSON as a serialized string.
-          payload = responseText;
-        }
-      }
+      const payload = await fetchApiPayload(endpoint);
 
       const parsedReports = parseReportsFromApi(payload);
 
@@ -783,19 +827,7 @@ async function fetchReportByTracking(trackingNumber) {
 
   for (const endpoint of endpoints) {
     try {
-      const response = await fetch(endpoint, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const responseText = await response.text();
-      let payload = {};
-
-      if (responseText) {
-        try {
-          payload = JSON.parse(responseText);
-        } catch {
-          payload = responseText;
-        }
-      }
+      const payload = await fetchApiPayload(endpoint);
 
       if (endpoint.includes("action=getReportByTracking")) {
         const matchedReport = payload && typeof payload === "object"
@@ -1096,6 +1128,24 @@ async function submitReport() {
         }
 
         return response.text();
+      } catch (error) {
+        if (isLikelyCorsBlockedRequest(endpoint, error)) {
+          await fetch(endpoint, {
+            method: "POST",
+            body: formUrlEncoded,
+            mode: "no-cors",
+            redirect: "follow"
+          });
+          return "";
+        }
+
+        lastError = error;
+      }
+
+      try {
+        const submitViaGetEndpoint = `${API_URL}?${formUrlEncoded.toString()}`;
+        await loadJsonp(submitViaGetEndpoint);
+        return "";
       } catch (error) {
         if (isLikelyCorsBlockedRequest(endpoint, error)) {
           corsBlocked = true;

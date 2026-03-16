@@ -4,16 +4,31 @@ function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || '';
   if (action === 'getReports' || action === '') {
     const reports = readReports_();
-    return buildJsonResponse_({ reports: reports, allowedOrigin: ALLOWED_ORIGIN });
+    return buildJsonResponse_({ reports: reports, allowedOrigin: ALLOWED_ORIGIN }, e);
   }
 
   if (action === 'getReportByTracking') {
     const tracking = (e && e.parameter && e.parameter.tracking) || '';
     const report = readReportByTracking_(tracking);
-    return buildJsonResponse_({ report: report, allowedOrigin: ALLOWED_ORIGIN });
+    return buildJsonResponse_({ report: report, allowedOrigin: ALLOWED_ORIGIN }, e);
   }
 
-  return buildJsonResponse_({ error: 'Unknown action.', allowedOrigin: ALLOWED_ORIGIN });
+  if (action === 'updateStatus') {
+    const tracking = (e && e.parameter && e.parameter.tracking) || '';
+    const status = (e && e.parameter && e.parameter.status) || '';
+    const result = updateReportStatusByTracking_(tracking, status);
+
+    return buildJsonResponse_({
+      success: result.success,
+      tracking: tracking,
+      status: result.status,
+      updated: result.updated,
+      error: result.error || '',
+      allowedOrigin: ALLOWED_ORIGIN
+    }, e);
+  }
+
+  return buildJsonResponse_({ error: 'Unknown action.', allowedOrigin: ALLOWED_ORIGIN }, e);
 }
 
 function doPost(e) {
@@ -31,7 +46,7 @@ function doPost(e) {
       updated: result.updated,
       error: result.error || '',
       allowedOrigin: ALLOWED_ORIGIN
-    });
+    }, e);
   }
 
   const row = {
@@ -56,7 +71,7 @@ function doPost(e) {
     duplicate: appendResult.duplicate,
     tracking: row.tracking,
     allowedOrigin: ALLOWED_ORIGIN
-  });
+  }, e);
 }
 
 function updateReportStatusByTracking_(tracking, status) {
@@ -106,10 +121,27 @@ function normalizeStatus_(status) {
   return 'Pending';
 }
 
-function buildJsonResponse_(payload) {
+function buildJsonResponse_(payload, e) {
+  const safePayload = payload || {};
+  const callback = sanitizeCallback_((e && e.parameter && e.parameter.callback) || '');
+
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(safePayload) + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
   return ContentService
-    .createTextOutput(JSON.stringify(payload || {}))
+    .createTextOutput(JSON.stringify(safePayload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function sanitizeCallback_(callback) {
+  const trimmed = String(callback || '').trim();
+  if (!trimmed) return '';
+
+  const callbackPattern = /^[a-zA-Z_$][0-9a-zA-Z_$\.]*$/;
+  return callbackPattern.test(trimmed) ? trimmed : '';
 }
 
 function getSheet_() {
