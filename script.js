@@ -376,6 +376,9 @@ async function verifySubmittedReport(trackingNumber) {
       }
     } catch (error) {
       encounteredLookupError = true;
+      if (isJsonpTransportError(error)) {
+        return null;
+      }
       console.warn("Unable to verify submitted report yet", error);
     }
 
@@ -553,6 +556,10 @@ async function fetchReports() {
       return cachedReports;
     }
     throw new Error(buildNetworkErrorMessage());
+  }
+  if (isJsonpTransportError(lastError)) {
+    cachedReports = localReports;
+    return cachedReports;
   }
   if (lastError) throw lastError;
   cachedReports = localReports;
@@ -913,7 +920,7 @@ async function loadStatistics() {
       : await fetchReports();
     renderReportStatistics(reports);
   } catch (error) {
-    console.log("Error loading statistics", error);
+    console.warn("Error loading statistics", error);
     renderReportStatisticsError(error);
   }
 }
@@ -982,6 +989,9 @@ async function fetchReportByTracking(trackingNumber) {
   if (lastError instanceof TypeError) {
     if (localMatch) return localMatch;
     throw new Error(buildNetworkErrorMessage());
+  }
+  if (isJsonpTransportError(lastError)) {
+    return localMatch || null;
   }
 
   if (lastError) throw lastError;
