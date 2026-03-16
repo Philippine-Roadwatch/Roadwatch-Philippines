@@ -5,6 +5,25 @@ let lng = 0;
 let cachedReports = [];
 
 const API_URL = "https://script.google.com/macros/s/AKfycbw4xD2FCUwBRQVORa-EChiCcA2R5O5sm6vS1_0dOehUPGpQV1-F66vVmjfgllbRaLbO/exec";
+const CORS_PROXY_URL = "https://corsproxy.io/?";
+
+function withCorsProxy(url) {
+  return `${CORS_PROXY_URL}${encodeURIComponent(url)}`;
+}
+
+function getReportEndpoints() {
+  const directEndpoints = [
+    API_URL,
+    `${API_URL}?action=getReports`,
+    `${API_URL}?view=reports`,
+    `${API_URL}?sheet=Reports`
+  ];
+
+  return [
+    ...directEndpoints,
+    ...directEndpoints.map(withCorsProxy)
+  ];
+}
 
 function normalizeKey(key) {
   return (key || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -73,12 +92,7 @@ function parseReportsFromApi(payload) {
 }
 
 async function fetchReports() {
-  const sheetEndpoints = [
-    API_URL,
-    `${API_URL}?action=getReports`,
-    `${API_URL}?view=reports`,
-    `${API_URL}?sheet=Reports`
-  ];
+  const sheetEndpoints = getReportEndpoints();
 
   let lastError;
 
@@ -133,6 +147,11 @@ function closeMenu() {
   const menu = document.getElementById("menu");
   const menuBtn = document.getElementById("menuBtn");
   if (!menu) return;
+
+  if (menu.contains(document.activeElement)) {
+    document.activeElement.blur();
+  }
+
   menu.classList.remove("open");
   menu.setAttribute("aria-hidden", "true");
   menuBtn?.setAttribute("aria-expanded", "false");
@@ -460,11 +479,32 @@ function submitReport() {
     formData.append("photo", document.getElementById("photo").files[0]);
   }
 
-  fetch(API_URL, {
-    method: "POST",
-    body: formData
-  })
-    .then(res => res.text())
+  const submitEndpoints = [API_URL, withCorsProxy(API_URL)];
+
+  const trySubmit = async () => {
+    let lastError;
+
+    for (const endpoint of submitEndpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return response.text();
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error("Unable to submit report");
+  };
+
+  trySubmit()
     .then(res => {
       // Show the popup correctly
 document.getElementById("trackInfo").innerText = "Tracking Number: " + tracking;
