@@ -1126,6 +1126,43 @@ section.active {
   line-height: 1.45;
 }
 
+
+.contact-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.contact-card h2 {
+  text-align: center;
+}
+
+.contact-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.contact-grid article {
+  border: 1px solid rgba(134, 208, 255, 0.34);
+  border-radius: 12px;
+  background: rgba(7, 33, 58, 0.68);
+  padding: 14px;
+}
+
+.contact-grid h3 {
+  margin: 0 0 10px;
+}
+
+.contact-grid p,
+.contact-grid li {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.contact-grid ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
 .submit-form-card h3 {
   margin: 18px 0 8px;
 }
