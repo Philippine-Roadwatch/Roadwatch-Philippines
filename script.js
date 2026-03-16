@@ -211,7 +211,7 @@ function toReportModel(report) {
     firstname: getFieldValue(report, ["firstname", "firstName", "givenName", "First Name"]),
     mi: getFieldValue(report, ["mi", "middleinitial", "middleInitial", "Middle Initial"]),
     location: getFieldValue(report, ["location", "address", "road", "Road Location"]),
-    issue: getFieldValue(report, ["issue", "problem", "details", "description", "Issue", "Details", "Report Details"]),
+    issue: getFieldValue(report, ["issue", "issueDetails", "issue_details", "problem", "details", "description", "Issue", "Issue Details", "Details", "Report Details"]),
     status: getFieldValue(report, ["status", "reportStatus", "Status"]),
     lat: getFieldValue(report, ["lat", "latitude", "Latitude"]),
     lng: getFieldValue(report, ["lng", "lon", "longitude", "Longitude"]),
@@ -681,7 +681,7 @@ function renderTrackingResult(report) {
 
   const trackingNumber = getFieldValue(report, ["tracking", "trackingNumber", "tracking_no", "track", "Tracking Number", "Tracking #", "Reference Number"]).toString().trim() || "Not available";
   const location = (report.location || report.address || "Not available").toString().trim() || "Not available";
-  const issueDetails = getFieldValue(report, ["issue", "problem", "details", "description", "Issue", "Details", "Report Details"]).toString().trim() || "Not available";
+  const issueDetails = getFieldValue(report, ["issue", "issueDetails", "issue_details", "problem", "details", "description", "Issue", "Issue Details", "Details", "Report Details"]).toString().trim() || "Not available";
 
   tbody.innerHTML = `
     <tr>
