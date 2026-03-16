@@ -9,7 +9,7 @@ let isSubmittingReport = false;
 
 const CORS_RETRY_COOLDOWN_MS = 60 * 1000;
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzUFdMFjG20ndhjVOP848SMIXp4RFlqHrhhxodUdBIbgDOLw03-AC_vpjAwZPd5lfUy/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwT3P78qomQHC05cLjUz-ITj7EOWH148BSc7U_3770_GpUL7dpeFZNw195xrtV21AMa/exec";
 
 
 function getReportEndpoints() {
