@@ -968,6 +968,18 @@ function resetForm() {
   document.getElementById("photoPreview").style.display = "none";
 }
 
+function hasValidCoordinates(report) {
+  const reportLat = parseFloat(report?.lat);
+  const reportLng = parseFloat(report?.lng);
+
+  if (!Number.isFinite(reportLat) || !Number.isFinite(reportLng)) return false;
+  if (reportLat < -90 || reportLat > 90) return false;
+  if (reportLng < -180 || reportLng > 180) return false;
+  if (reportLat === 0 && reportLng === 0) return false;
+
+  return true;
+}
+
 // Load existing reports
 async function loadReports() {
   try {
@@ -977,7 +989,7 @@ async function loadReports() {
     renderReportStatistics(reports);
 
     reports.forEach(r => {
-      if (!r.lat || !r.lng) return;
+      if (!hasValidCoordinates(r)) return;
 
       L.marker([parseFloat(r.lat), parseFloat(r.lng)])
         .addTo(map)
