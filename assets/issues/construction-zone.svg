@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" role="img" aria-labelledby="title desc">
+  <title id="title">Construction Zone</title>
+  <desc id="desc">Road construction zone with barricades.</desc>
+  <rect width="400" height="240" fill="#d4e7f9"/>
+  <rect y="122" width="400" height="118" fill="#5d6a7f"/>
+  <g transform="translate(70 92)">
+    <rect width="70" height="70" fill="#ff8a3d"/>
+    <rect y="14" width="70" height="10" fill="#fff"/>
+    <rect y="40" width="70" height="10" fill="#fff"/>
+  </g>
+  <g transform="translate(255 88)">
+    <rect width="78" height="74" fill="#ff8a3d"/>
+    <rect y="16" width="78" height="10" fill="#fff"/>
+    <rect y="44" width="78" height="10" fill="#fff"/>
+  </g>
+  <polygon points="200,70 238,136 162,136" fill="#ffd24d" stroke="#30384a" stroke-width="4"/>
+  <rect x="188" y="96" width="24" height="10" fill="#30384a"/>
+  <circle cx="200" cy="118" r="6" fill="#30384a"/>
+</svg>

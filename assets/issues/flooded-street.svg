@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" role="img" aria-labelledby="title desc">
+  <title id="title">Flooded Street</title>
+  <desc id="desc">Street submerged in flood water.</desc>
+  <rect width="400" height="240" fill="#c8e3ff"/>
+  <rect y="130" width="400" height="110" fill="#5a6b85"/>
+  <rect y="150" width="400" height="90" fill="#4bb3ff" opacity="0.7"/>
+  <path d="M0 168 C30 158 60 178 90 168 C120 158 150 178 180 168 C210 158 240 178 270 168 C300 158 330 178 360 168 C380 162 390 162 400 166" fill="none" stroke="#dbf5ff" stroke-width="6"/>
+  <rect x="48" y="80" width="70" height="60" fill="#f1f5fb" stroke="#4f6786" stroke-width="4"/>
+  <rect x="282" y="74" width="72" height="66" fill="#eef3fa" stroke="#4f6786" stroke-width="4"/>
+</svg>
