@@ -514,20 +514,29 @@ function submitReport() {
 
   let tracking = "RW" + Date.now();
 
-  let formData = new FormData();
-  formData.append("tracking", tracking);
-  formData.append("lastname", document.getElementById("lastname").value);
-  formData.append("firstname", document.getElementById("firstname").value);
-  formData.append("mi", document.getElementById("mi").value);
-  formData.append("email", document.getElementById("email").value);
-  formData.append("phone", document.getElementById("phone").value);
-  formData.append("location", document.getElementById("locationText").value);
-  formData.append("issue", document.getElementById("issue").value);
-  formData.append("lat", lat || "");
-  formData.append("lng", lng || "");
+  const reportPayload = {
+    tracking,
+    lastname: document.getElementById("lastname").value,
+    firstname: document.getElementById("firstname").value,
+    mi: document.getElementById("mi").value,
+    email: document.getElementById("email").value,
+    phone: document.getElementById("phone").value,
+    location: document.getElementById("locationText").value,
+    issue: document.getElementById("issue").value,
+    lat: lat || "",
+    lng: lng || ""
+  };
+
+  const formData = new FormData();
+  Object.entries(reportPayload).forEach(([key, value]) => {
+    formData.append(key, value);
+  });
+
   if (document.getElementById("photo").files[0]) {
     formData.append("photo", document.getElementById("photo").files[0]);
   }
+
+  const formUrlEncoded = new URLSearchParams(reportPayload);
 
   const submitEndpoints = [API_URL];
 
@@ -540,7 +549,8 @@ function submitReport() {
       try {
         const response = await fetch(endpoint, {
           method: "POST",
-          body: formData
+          body: formData,
+          redirect: "follow"
         });
 
         if (!response.ok) {
@@ -550,9 +560,15 @@ function submitReport() {
         return response.text();
       } catch (error) {
         if (isLikelyCorsBlockedRequest(endpoint, error)) {
-          corsBlocked = true;
-          corsBlockedEndpoint = endpoint;
-          break;
+          // Fallback to a simple no-cors request which is accepted by Apps Script
+          // even when the current origin is not allowed to read the response.
+          await fetch(endpoint, {
+            method: "POST",
+            mode: "no-cors",
+            body: formUrlEncoded,
+            redirect: "follow"
+          });
+          return "submitted-no-cors";
         }
         lastError = error;
       }
