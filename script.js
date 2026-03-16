@@ -5,6 +5,7 @@ let lng = 0;
 let cachedReports = [];
 let corsFailureAlreadyLogged = false;
 let corsRetryBlockedUntil = 0;
+let isSubmittingReport = false;
 
 const CORS_RETRY_COOLDOWN_MS = 60 * 1000;
 
@@ -551,10 +552,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Submit report
 async function submitReport() {
+  if (isSubmittingReport) return;
+
   if (lat === 0 && !document.getElementById("locationText").value.trim()) {
     alert("Please select location on map or type the road name");
     return;
   }
+
+  isSubmittingReport = true;
 
   let tracking = "RW" + Date.now();
 
@@ -604,19 +609,10 @@ async function submitReport() {
         return response.text();
       } catch (error) {
         if (isLikelyCorsBlockedRequest(endpoint, error)) {
-          try {
-            await fetch(endpoint, {
-              method: "POST",
-              mode: "no-cors",
-              body: formUrlEncoded
-            });
-            return "submitted-no-cors";
-          } catch (noCorsError) {
-            corsBlocked = true;
-            corsBlockedEndpoint = endpoint;
-            lastError = noCorsError;
-            break;
-          }
+          corsBlocked = true;
+          corsBlockedEndpoint = endpoint;
+          lastError = error;
+          break;
         }
         lastError = error;
       }
@@ -633,7 +629,7 @@ async function submitReport() {
 
   try {
     const res = await trySubmit();
-    if (res && res !== "submitted-no-cors") {
+    if (res) {
       try {
         const payload = JSON.parse(res);
         if (payload && payload.success === false) {
@@ -649,6 +645,8 @@ async function submitReport() {
   } catch (err) {
     console.error(err);
     alert(err.message || "Submission failed. Check your API or internet connection.");
+  } finally {
+    isSubmittingReport = false;
   }
 }
 
