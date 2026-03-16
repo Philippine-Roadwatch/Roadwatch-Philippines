@@ -940,8 +940,37 @@ section.active {
 }
 
 
-.about-card h2 {
+.about-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.about-card h2,
+.faq-card h2 {
   text-align: center;
+}
+
+.faq-list {
+  display: grid;
+  gap: 10px;
+}
+
+.faq-list details {
+  border: 1px solid rgba(134, 208, 255, 0.34);
+  border-radius: 12px;
+  background: rgba(7, 33, 58, 0.68);
+  padding: 12px 14px;
+}
+
+.faq-list summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.faq-list details p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .submit-form-card h3 {
