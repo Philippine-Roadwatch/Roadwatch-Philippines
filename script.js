@@ -4,6 +4,9 @@ let lat = 0;
 let lng = 0;
 let cachedReports = [];
 let corsFailureAlreadyLogged = false;
+let corsRetryBlockedUntil = 0;
+
+const CORS_RETRY_COOLDOWN_MS = 60 * 1000;
 
 const API_URL = "https://script.google.com/macros/s/AKfycbyQU4asI6G9pHPrhWaIR3FwGuE6Y7pjekQvZpqI-YqVnNA6ukmpsK-tScGZGzv66zE3/exec";
 
@@ -21,6 +24,14 @@ function getCurrentOrigin() {
 function buildCorsErrorMessage(endpoint = API_URL) {
   const currentOrigin = getCurrentOrigin();
   return `Request to ${endpoint} was blocked by CORS from ${currentOrigin}. Redeploy the Google Apps Script web app with access set to Anyone, and return Access-Control-Allow-Origin for ${currentOrigin} (or *) on GET/POST and OPTIONS responses.`;
+}
+
+function isCorsRetryCooldownActive() {
+  return Date.now() < corsRetryBlockedUntil;
+}
+
+function activateCorsRetryCooldown() {
+  corsRetryBlockedUntil = Date.now() + CORS_RETRY_COOLDOWN_MS;
 }
 
 function isCorsConfigurationIssue(error) {
@@ -150,6 +161,10 @@ function parseReportsFromApi(payload) {
 }
 
 async function fetchReports() {
+  if (isCorsRetryCooldownActive()) {
+    throw new Error(buildCorsErrorMessage(API_URL));
+  }
+
   const sheetEndpoints = getReportEndpoints();
 
   let lastError;
@@ -191,6 +206,7 @@ async function fetchReports() {
 
   cachedReports = [];
   if (corsBlocked) {
+    activateCorsRetryCooldown();
     const corsError = new Error(buildCorsErrorMessage(corsBlockedEndpoint));
     reportCorsTroubleshootingContext();
     throw corsError;
