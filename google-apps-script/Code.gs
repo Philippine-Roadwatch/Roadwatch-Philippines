@@ -145,11 +145,24 @@ function sanitizeCallback_(callback) {
 }
 
 function getSheet_() {
-  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (!spreadsheetId) throw new Error('Missing SPREADSHEET_ID script property.');
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const spreadsheetId = scriptProperties.getProperty('SPREADSHEET_ID');
+  const sheetName = scriptProperties.getProperty('SHEET_NAME') || 'Reports';
+  let ss = null;
 
-  const sheetName = PropertiesService.getScriptProperties().getProperty('SHEET_NAME') || 'Reports';
-  const ss = SpreadsheetApp.openById(spreadsheetId);
+  if (spreadsheetId) {
+    ss = SpreadsheetApp.openById(spreadsheetId);
+  } else {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (ss) {
+      scriptProperties.setProperty('SPREADSHEET_ID', ss.getId());
+    }
+  }
+
+  if (!ss) {
+    throw new Error('Missing SPREADSHEET_ID script property. Set it in Project Settings > Script properties, or bind this script to a spreadsheet and rerun.');
+  }
+
   const sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
 
   if (sheet.getLastRow() === 0) {
