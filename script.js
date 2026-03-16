@@ -4,7 +4,7 @@ let lat = 0;
 let lng = 0;
 let cachedReports = [];
 
-const API_URL = "https://script.google.com/macros/s/AKfycbw4xD2FCUwBRQVORa-EChiCcA2R5O5sm6vS1_0dOehUPGpQV1-F66vVmjfgllbRaLbO/exec"; // <-- replace with your actual URL
+const API_URL = "https://script.google.com/macros/s/AKfycbw4xD2FCUwBRQVORa-EChiCcA2R5O5sm6vS1_0dOehUPGpQV1-F66vVmjfgllbRaLbO/exec";
 
 function normalizeKey(key) {
   return (key || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -34,7 +34,8 @@ function getFieldValue(record, aliases) {
 
 function toReportModel(report) {
   return {
-    tracking: getFieldValue(report, ["tracking", "trackingNumber", "tracking_no", "Tracking Number"]),
+    tracking: getFieldValue(report, ["tracking", "trackingNumber", "tracking_no", "Tracking Number", "Tracking #", "Reference Number"]),
+    name: getFieldValue(report, ["name", "fullName", "Full Name", "Reporter Name"]),
     lastname: getFieldValue(report, ["lastname", "lastName", "surname", "Last Name"]),
     firstname: getFieldValue(report, ["firstname", "firstName", "givenName", "First Name"]),
     mi: getFieldValue(report, ["mi", "middleinitial", "middleInitial", "Middle Initial"]),
@@ -43,7 +44,7 @@ function toReportModel(report) {
     status: getFieldValue(report, ["status", "reportStatus", "Status"]),
     lat: getFieldValue(report, ["lat", "latitude", "Latitude"]),
     lng: getFieldValue(report, ["lng", "lon", "longitude", "Longitude"]),
-    timestamp: getFieldValue(report, ["timestamp", "time", "submittedAt", "submissionTime", "date", "createdAt", "Submitted At"])
+    timestamp: getFieldValue(report, ["timestamp", "time", "submittedAt", "submissionTime", "Submission Time", "date", "createdAt", "Submitted At"])
   };
 }
 
@@ -72,9 +73,35 @@ function parseReportsFromApi(payload) {
 }
 
 async function fetchReports() {
-  const response = await fetch(API_URL);
-  const payload = await response.json();
-  cachedReports = parseReportsFromApi(payload);
+  const sheetEndpoints = [
+    API_URL,
+    `${API_URL}?action=getReports`,
+    `${API_URL}?view=reports`,
+    `${API_URL}?sheet=Reports`
+  ];
+
+  let lastError;
+
+  for (const endpoint of sheetEndpoints) {
+    try {
+      const response = await fetch(endpoint, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const responseText = await response.text();
+      const payload = responseText ? JSON.parse(responseText) : [];
+      const parsedReports = parseReportsFromApi(payload);
+
+      if (parsedReports.length > 0) {
+        cachedReports = parsedReports;
+        return cachedReports;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  cachedReports = [];
+  if (lastError) throw lastError;
   return cachedReports;
 }
 
@@ -203,7 +230,7 @@ function normalizeStatus(status) {
 }
 
 function formatSubmissionTime(report) {
-  const rawTime = getFieldValue(report, ["timestamp", "time", "submittedAt", "submissionTime", "date", "createdAt", "Submitted At"]);
+  const rawTime = getFieldValue(report, ["timestamp", "time", "submittedAt", "submissionTime", "Submission Time", "date", "createdAt", "Submitted At"]);
   if (!rawTime) return "Not available";
 
   const parsed = new Date(rawTime);
@@ -221,7 +248,7 @@ function formatSubmissionTime(report) {
 function findReportByTracking(reports, trackingNumber) {
   const target = trackingNumber.trim().toLowerCase();
   return reports.find(report => {
-    const tracking = getFieldValue(report, ["tracking", "trackingNumber", "track", "Tracking Number"]).toString().trim().toLowerCase();
+    const tracking = getFieldValue(report, ["tracking", "trackingNumber", "track", "Tracking Number", "Tracking #", "Reference Number"]).toString().trim().toLowerCase();
     return tracking === target;
   });
 }
@@ -234,7 +261,7 @@ function renderTrackingResult(report) {
   const lastname = (report.lastname || "").trim();
   const firstname = (report.firstname || "").trim();
   const middleInitial = (report.mi || report.middleinitial || report.middleInitial || "").trim();
-  let fullName = "Not available";
+  let fullName = (report.name || "").trim() || "Not available";
 
   if (lastname || firstname || middleInitial) {
     const baseName = [lastname, firstname].filter(Boolean).join(", ");
@@ -242,14 +269,12 @@ function renderTrackingResult(report) {
   }
 
   const location = (report.location || report.address || "Not available").toString().trim() || "Not available";
-  const issueDetails = (report.issue || report.details || "Not available").toString().trim() || "Not available";
 
   tbody.innerHTML = `
     <tr>
       <td>${formatSubmissionTime(report)}</td>
       <td>${fullName}</td>
       <td>${location}</td>
-      <td>${issueDetails}</td>
       <td><span class="status-pill">${normalizeStatus(report.status)}</span></td>
     </tr>
   `;
@@ -479,4 +504,3 @@ async function loadReports() {
     console.log("Error loading reports", err);
   }
 }
-
