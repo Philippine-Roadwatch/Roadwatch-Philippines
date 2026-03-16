@@ -13,6 +13,7 @@
 
 From `https://philippine-roadwatch.github.io`, verify:
 - `GET /exec?action=getReports`
+- `GET /exec?action=getReportByTracking&tracking=<tracking-number>`
 - `POST /exec` (form submission)
 
 Google Apps Script web app responses are served by Google infrastructure. In practice, CORS works when the web app is deployed with **Who has access: Anyone** and requests are made as simple GET/POST calls. `ContentService` does not provide a supported custom response-header API, so this template returns JSON and avoids unsupported header-setting code.

@@ -19,6 +19,14 @@ function getReportEndpoints() {
   return [API_URL, `${API_URL}?action=getReports`];
 }
 
+function buildTrackingLookupEndpoints(trackingNumber) {
+  const tracking = encodeURIComponent((trackingNumber || "").trim());
+  return [
+    `${API_URL}?action=getReportByTracking&tracking=${tracking}`,
+    `${API_URL}?action=getReports`
+  ];
+}
+
 function getLocalReports() {
   try {
     const raw = localStorage.getItem(LOCAL_REPORTS_KEY);
@@ -582,6 +590,80 @@ function findReportByTracking(reports, trackingNumber) {
   });
 }
 
+async function fetchReportByTracking(trackingNumber) {
+  const localReports = getLocalReports();
+  const localMatch = findReportByTracking(localReports, trackingNumber);
+
+  if (isCorsRetryCooldownActive()) {
+    return localMatch || null;
+  }
+
+  const endpoints = buildTrackingLookupEndpoints(trackingNumber);
+
+  let lastError;
+  let corsBlocked = false;
+  let corsBlockedEndpoint = "";
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const responseText = await response.text();
+      let payload = {};
+
+      if (responseText) {
+        try {
+          payload = JSON.parse(responseText);
+        } catch {
+          payload = responseText;
+        }
+      }
+
+      if (endpoint.includes("action=getReportByTracking")) {
+        const matchedReport = payload && typeof payload === "object"
+          ? toReportModel(payload.report || {})
+          : null;
+
+        if (matchedReport && matchedReport.tracking) {
+          cachedReports = mergeReportsByTracking([matchedReport], localReports);
+          return matchedReport;
+        }
+      }
+
+      const reports = parseReportsFromApi(payload);
+      const matchedReport = findReportByTracking(reports, trackingNumber);
+      if (matchedReport) {
+        cachedReports = mergeReportsByTracking(reports, localReports);
+        return matchedReport;
+      }
+    } catch (error) {
+      if (isLikelyCorsBlockedRequest(endpoint, error)) {
+        corsBlocked = true;
+        corsBlockedEndpoint = endpoint;
+        break;
+      }
+      lastError = error;
+    }
+  }
+
+  if (corsBlocked) {
+    activateCorsRetryCooldown();
+    if (localMatch) return localMatch;
+    const corsError = new Error(buildCorsErrorMessage(corsBlockedEndpoint));
+    reportCorsTroubleshootingContext();
+    throw corsError;
+  }
+
+  if (lastError instanceof TypeError) {
+    if (localMatch) return localMatch;
+    throw new Error(buildNetworkErrorMessage());
+  }
+
+  if (lastError) throw lastError;
+  return localMatch || null;
+}
+
 function renderTrackingResult(report) {
   const wrapper = document.getElementById("trackingResultWrapper");
   const tbody = document.getElementById("trackingResultBody");
@@ -636,12 +718,7 @@ async function handleTrackingSearch(event) {
   feedback.textContent = "Searching report...";
 
   try {
-    let reports = cachedReports;
-    if (!Array.isArray(reports) || reports.length === 0) {
-      reports = await fetchReports();
-    }
-
-    const matchedReport = findReportByTracking(reports, trackingNumber);
+    const matchedReport = await fetchReportByTracking(trackingNumber);
 
     if (!matchedReport) {
       feedback.textContent = "No report found for this tracking number.";
