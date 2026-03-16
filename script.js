@@ -362,6 +362,117 @@ function formatSubmissionTime(report) {
   });
 }
 
+function getIssueCategory(issueText) {
+  const issue = (issueText || "").toString().trim().toLowerCase();
+  if (!issue) return "Unspecified";
+
+  const issueMatchers = [
+    { label: "Road Surface", patterns: ["pothole", "crack", "lane", "marking", "surface", "asphalt"] },
+    { label: "Flooding & Drainage", patterns: ["flood", "drain", "water", "clog", "rain"] },
+    { label: "Road Safety", patterns: ["traffic light", "sign", "guardrail", "crossing", "safety"] },
+    { label: "Street Infrastructure", patterns: ["streetlight", "sidewalk", "manhole", "reflector", "pavement"] },
+    { label: "Road Obstruction", patterns: ["obstruction", "fallen tree", "debris", "construction", "illegal parking", "blocked"] }
+  ];
+
+  const matched = issueMatchers.find(item => item.patterns.some(pattern => issue.includes(pattern)));
+  if (matched) return matched.label;
+
+  return "Other Concerns";
+}
+
+function computeReportStatistics(reports) {
+  const safeReports = Array.isArray(reports) ? reports : [];
+
+  const statusCounts = {
+    pending: 0,
+    inProgress: 0,
+    repaired: 0
+  };
+
+  const issueTypeCounts = {};
+  let thisMonthCount = 0;
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  safeReports.forEach((report) => {
+    const status = normalizeStatus(report.status).toLowerCase();
+    if (status === "pending") statusCounts.pending += 1;
+    if (status === "in progress") statusCounts.inProgress += 1;
+    if (status === "repaired") statusCounts.repaired += 1;
+
+    const issueType = getIssueCategory(report.issue);
+    issueTypeCounts[issueType] = (issueTypeCounts[issueType] || 0) + 1;
+
+    const rawDate = getFieldValue(report, ["timestamp", "time", "submittedAt", "submissionTime", "Submission Time", "date", "createdAt", "Submitted At"]);
+    const parsedDate = new Date(rawDate);
+    if (!Number.isNaN(parsedDate.getTime()) && parsedDate.getMonth() === currentMonth && parsedDate.getFullYear() === currentYear) {
+      thisMonthCount += 1;
+    }
+  });
+
+  const topIssue = Object.entries(issueTypeCounts)
+    .sort((a, b) => b[1] - a[1])[0] || ["None yet", 0];
+
+  return {
+    total: safeReports.length,
+    statusCounts,
+    issueTypeCounts,
+    topIssue,
+    thisMonthCount
+  };
+}
+
+function renderReportStatistics(reports) {
+  const totalEl = document.getElementById("statsTotalReports");
+  const pendingEl = document.getElementById("statsPending");
+  const inProgressEl = document.getElementById("statsInProgress");
+  const repairedEl = document.getElementById("statsRepaired");
+  const topIssueEl = document.getElementById("statsTopIssue");
+  const thisMonthEl = document.getElementById("statsThisMonth");
+  const distributionEl = document.getElementById("statsDistribution");
+  const feedbackEl = document.getElementById("statsFeedback");
+
+  if (!totalEl || !pendingEl || !inProgressEl || !repairedEl || !topIssueEl || !thisMonthEl || !distributionEl || !feedbackEl) return;
+
+  const stats = computeReportStatistics(reports);
+
+  totalEl.textContent = stats.total.toLocaleString("en-PH");
+  pendingEl.textContent = stats.statusCounts.pending.toLocaleString("en-PH");
+  inProgressEl.textContent = stats.statusCounts.inProgress.toLocaleString("en-PH");
+  repairedEl.textContent = stats.statusCounts.repaired.toLocaleString("en-PH");
+  topIssueEl.textContent = `${stats.topIssue[0]} (${stats.topIssue[1]})`;
+  thisMonthEl.textContent = stats.thisMonthCount.toLocaleString("en-PH");
+
+  const totalIssues = Object.values(stats.issueTypeCounts).reduce((acc, count) => acc + count, 0);
+  const issueEntries = Object.entries(stats.issueTypeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  distributionEl.innerHTML = issueEntries.map(([label, count]) => {
+    const ratio = totalIssues > 0 ? Math.round((count / totalIssues) * 100) : 0;
+    return `
+      <div class="stats-distribution-item">
+        <div class="stats-distribution-label-row">
+          <span>${label}</span>
+          <span>${count} • ${ratio}%</span>
+        </div>
+        <div class="stats-distribution-track">
+          <span style="width:${ratio}%;"></span>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  feedbackEl.textContent = stats.total > 0
+    ? `Updated with ${stats.total.toLocaleString("en-PH")} report${stats.total === 1 ? "" : "s"} from the connected Google Sheet.`
+    : "No report data is available yet from the connected Google Sheet.";
+}
+
+function renderReportStatisticsError(error) {
+  const feedbackEl = document.getElementById("statsFeedback");
+  if (!feedbackEl) return;
+  feedbackEl.textContent = toUserFacingLoadErrorMessage(error);
+}
+
 function findReportByTracking(reports, trackingNumber) {
   const target = trackingNumber.trim().toLowerCase();
   return reports.find(report => {
@@ -678,6 +789,7 @@ function resetForm() {
 async function loadReports() {
   try {
     await fetchReports();
+    renderReportStatistics(cachedReports);
 
     cachedReports.forEach(r => {
       if (!r.lat || !r.lng) return;
@@ -688,6 +800,7 @@ async function loadReports() {
     });
   } catch (err) {
     console.log("Error loading reports", err);
+    renderReportStatisticsError(err);
 
     const feedback = document.getElementById("trackingSearchFeedback");
     if (feedback) {

@@ -274,6 +274,48 @@
 
       <button class="submitBtn" onclick="submitReport()">Submit Report</button>
       </div>
+
+    <section class="card report-stats-card" aria-labelledby="reportStatsHeading">
+      <div class="report-stats-head">
+        <p class="stats-eyebrow">Live Google Sheet Insights</p>
+        <h3 id="reportStatsHeading">Road Issue Report Statistics</h3>
+        <p class="report-stats-subtitle">Real-time report trends based on the reports submitted through RoadWatch PH.</p>
+      </div>
+
+      <div class="report-stats-grid">
+        <article class="stats-kpi stats-kpi-total">
+          <p>Total Reports</p>
+          <strong id="statsTotalReports">--</strong>
+        </article>
+        <article class="stats-kpi">
+          <p>Pending</p>
+          <strong id="statsPending">--</strong>
+        </article>
+        <article class="stats-kpi">
+          <p>In Progress</p>
+          <strong id="statsInProgress">--</strong>
+        </article>
+        <article class="stats-kpi">
+          <p>Repaired</p>
+          <strong id="statsRepaired">--</strong>
+        </article>
+      </div>
+
+      <div class="stats-distribution" id="statsDistribution" aria-live="polite"></div>
+
+      <div class="stats-highlight-row">
+        <article class="stats-highlight">
+          <p class="stats-highlight-label">Most Reported Concern</p>
+          <strong id="statsTopIssue">--</strong>
+        </article>
+        <article class="stats-highlight">
+          <p class="stats-highlight-label">Submitted This Month</p>
+          <strong id="statsThisMonth">--</strong>
+        </article>
+      </div>
+
+      <p id="statsFeedback" class="stats-feedback">Loading statistics…</p>
+    </section>
     </div>
   </div>
 </section>
