@@ -10,7 +10,7 @@ let isSubmittingReport = false;
 const CORS_RETRY_COOLDOWN_MS = 60 * 1000;
 const LOCAL_REPORTS_KEY = "roadwatchLocalReports";
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwT3P78qomQHC05cLjUz-ITj7EOWH148BSc7U_3770_GpUL7dpeFZNw195xrtV21AMa/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxYhhezH05f2ZiA1DNgIQcK1jmY81m1lQMefiYao_tm-OvSgviAul5cqJFrvyPgUjHa/exec";
 
 
 function getReportEndpoints() {
