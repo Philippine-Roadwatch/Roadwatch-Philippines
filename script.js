@@ -14,7 +14,7 @@ const LOCAL_REPORTS_KEY = "roadwatchLocalReports";
 const ADMIN_STATUS_OVERRIDES_KEY = "roadwatchAdminStatusOverrides";
 const SITE_SETTINGS_KEY = "roadwatchSiteSettings";
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzSQOFIEjxPLmfV_l6f70INIZryAfSDQloBJChrBwhIa4C9mnockkm9OrE8IMkeDllk/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyOjQKs4BZUpHvpKGrAyPDvFLX7YauHwPgTPyyqmKW0EXyUsRTSiOACGEohdirvJipX/exec";
 
 
 
