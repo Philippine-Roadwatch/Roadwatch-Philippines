@@ -18,6 +18,22 @@ function doGet(e) {
 
 function doPost(e) {
   const params = (e && e.parameter) || {};
+
+  if (params.action === 'updateStatus') {
+    const tracking = params.tracking || '';
+    const status = params.status || '';
+    const result = updateReportStatusByTracking_(tracking, status);
+
+    return buildJsonResponse_({
+      success: result.success,
+      tracking: tracking,
+      status: result.status,
+      updated: result.updated,
+      error: result.error || '',
+      allowedOrigin: ALLOWED_ORIGIN
+    });
+  }
+
   const row = {
     timestamp: new Date().toISOString(),
     tracking: params.tracking || '',
@@ -41,6 +57,53 @@ function doPost(e) {
     tracking: row.tracking,
     allowedOrigin: ALLOWED_ORIGIN
   });
+}
+
+function updateReportStatusByTracking_(tracking, status) {
+  const trackingValue = String(tracking || '').trim();
+  const normalizedStatus = normalizeStatus_(status);
+
+  if (!trackingValue) {
+    return { success: false, updated: false, status: normalizedStatus, error: 'Tracking is required.' };
+  }
+
+  const sheet = getSheet_();
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) {
+    return { success: false, updated: false, status: normalizedStatus, error: 'No reports found.' };
+  }
+
+  const headers = values[0].map(function (header) { return String(header || '').trim().toLowerCase(); });
+  const trackingColumnIndex = headers.indexOf('tracking');
+  const statusColumnIndex = headers.indexOf('status');
+
+  if (trackingColumnIndex === -1 || statusColumnIndex === -1) {
+    return {
+      success: false,
+      updated: false,
+      status: normalizedStatus,
+      error: 'Missing tracking or status column in sheet.'
+    };
+  }
+
+  const targetTracking = trackingValue.toLowerCase();
+  for (var rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
+    var rowTracking = String(values[rowIndex][trackingColumnIndex] || '').trim().toLowerCase();
+    if (rowTracking === targetTracking) {
+      sheet.getRange(rowIndex + 1, statusColumnIndex + 1).setValue(normalizedStatus);
+      return { success: true, updated: true, status: normalizedStatus };
+    }
+  }
+
+  return { success: false, updated: false, status: normalizedStatus, error: 'Tracking number not found.' };
+}
+
+function normalizeStatus_(status) {
+  const raw = String(status || '').trim().toLowerCase();
+  if (raw === 'verified') return 'Verified';
+  if (raw === 'in progress' || raw === 'inprogress') return 'In Progress';
+  if (raw === 'repaired') return 'Repaired';
+  return 'Pending';
 }
 
 function buildJsonResponse_(payload) {

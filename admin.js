@@ -1,23 +1,10 @@
 const ADMIN_USERNAME = "roadwatchph";
 const ADMIN_PASSWORD = "roadwatchph";
 const ADMIN_SESSION_KEY = "roadwatchAdminAuthed";
-const STATUS_OVERRIDES_KEY = "roadwatchAdminStatusOverrides";
 const API_URL = "https://script.google.com/macros/s/AKfycbz5Z666xxZThJsMGwPCDNg8Vdku-WfQmZHeQHM6Rko4YLwnnpViqTAMX2UfBbUyk_u1/exec";
 
 const loginPanel = document.getElementById("loginPanel");
 const dashboard = document.getElementById("dashboard");
-
-function getStatusOverrides() {
-  try {
-    return JSON.parse(localStorage.getItem(STATUS_OVERRIDES_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function saveStatusOverrides(overrides) {
-  localStorage.setItem(STATUS_OVERRIDES_KEY, JSON.stringify(overrides));
-}
 
 function parseReports(payload) {
   if (typeof payload === "string") {
@@ -132,6 +119,38 @@ function normalizeReport(record = {}) {
   };
 }
 
+async function updateReportStatus(tracking, status) {
+  const body = new URLSearchParams({
+    action: "updateStatus",
+    tracking: String(tracking || "").trim(),
+    status: status
+  });
+
+  const response = await fetch(API_URL, {
+    method: "POST",
+    body
+  });
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const text = await response.text();
+  let payload = {};
+
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = {};
+    }
+  }
+
+  if (!payload.success) {
+    throw new Error(payload.error || "Unable to update report status.");
+  }
+
+  return payload;
+}
+
 function statusSelect(current, tracking) {
   const select = document.createElement("select");
   ["Pending", "Verified", "In Progress", "Repaired"].forEach((label) => {
@@ -142,14 +161,25 @@ function statusSelect(current, tracking) {
     select.appendChild(option);
   });
 
-  select.addEventListener("change", () => {
-    const overrides = getStatusOverrides();
-    overrides[tracking] = select.value;
-    saveStatusOverrides(overrides);
-    setFeedback("reportsFeedback", `Saved status update for ${tracking}.`);
-    updateAnalyticsFromRows();
+  select.addEventListener("change", async () => {
+    const nextStatus = select.value;
+    const previousStatus = select.dataset.previous || current;
+    select.disabled = true;
+
+    try {
+      await updateReportStatus(tracking, nextStatus);
+      select.dataset.previous = nextStatus;
+      setFeedback("reportsFeedback", `Updated ${tracking} to ${nextStatus}.`);
+      updateAnalyticsFromRows();
+    } catch (error) {
+      select.value = previousStatus;
+      setFeedback("reportsFeedback", error.message || "Unable to save status update.", true);
+    } finally {
+      select.disabled = false;
+    }
   });
 
+  select.dataset.previous = current;
   return select;
 }
 
@@ -226,8 +256,6 @@ async function loadReports() {
     }
 
     const reports = parseReports(payload).map(normalizeReport);
-    const overrides = getStatusOverrides();
-
     if (reports.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6">No reports found.</td></tr>';
       renderAnalytics([]);
@@ -239,7 +267,7 @@ async function loadReports() {
 
     reports.forEach((report) => {
       const tr = document.createElement("tr");
-      const effectiveStatus = normalizeStatus(overrides[report.tracking] || report.status);
+      const effectiveStatus = normalizeStatus(report.status);
       renderedReports.push({ ...report, status: effectiveStatus });
 
       tr.innerHTML = `
