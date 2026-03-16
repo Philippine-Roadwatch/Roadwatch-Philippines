@@ -143,21 +143,24 @@ function getSheet_() {
 
 function appendReport_(row) {
   const sheet = getSheet_();
+  const columnCount = 13;
   const trackingValue = String(row.tracking || '').trim();
+  const dataRowCount = Math.max(sheet.getLastRow() - 1, 0);
+  const dataValues = dataRowCount > 0
+    ? sheet.getRange(2, 1, dataRowCount, columnCount).getValues()
+    : [];
 
   if (trackingValue) {
-    const existingTrackings = sheet
-      .getRange(2, 2, Math.max(sheet.getLastRow() - 1, 0), 1)
-      .getValues()
-      .flat()
-      .map(function (value) { return String(value || '').trim(); });
+    const existingTrackings = dataValues
+      .map(function (rowValues) { return String(rowValues[1] || '').trim(); })
+      .filter(function (value) { return value !== ''; });
 
     if (existingTrackings.includes(trackingValue)) {
       return { duplicate: true };
     }
   }
 
-  sheet.appendRow([
+  const valuesToWrite = [[
     row.timestamp,
     row.tracking,
     row.lastname,
@@ -171,7 +174,17 @@ function appendReport_(row) {
     row.lng,
     row.photo,
     row.status
-  ]);
+  ]];
+
+  const firstAvailableIndex = dataValues.findIndex(function (rowValues) {
+    return rowValues.every(function (value) { return String(value || '').trim() === ''; });
+  });
+
+  if (firstAvailableIndex !== -1) {
+    sheet.getRange(firstAvailableIndex + 2, 1, 1, columnCount).setValues(valuesToWrite);
+  } else {
+    sheet.appendRow(valuesToWrite[0]);
+  }
 
   return { duplicate: false };
 }
@@ -182,13 +195,17 @@ function readReports_() {
   if (values.length <= 1) return [];
 
   const headers = values[0];
-  return values.slice(1).map(function (row) {
-    const item = {};
-    headers.forEach(function (header, index) {
-      item[String(header || '').trim()] = row[index];
+  return values.slice(1)
+    .filter(function (row) {
+      return row.some(function (value) { return String(value || '').trim() !== ''; });
+    })
+    .map(function (row) {
+      const item = {};
+      headers.forEach(function (header, index) {
+        item[String(header || '').trim()] = row[index];
+      });
+      return item;
     });
-    return item;
-  });
 }
 
 function readReportByTracking_(tracking) {
